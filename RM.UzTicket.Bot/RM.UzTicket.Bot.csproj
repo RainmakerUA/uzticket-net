@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /A /Y $(SolutionDir).env $(ProjectDir)$(OutDir).env" />
+    <Exec Command="if $(ConfigurationName) == Debug copy /A /Y $(SolutionDir).env $(ProjectDir)$(OutDir).env" />
   </Target>
 
 </Project>
