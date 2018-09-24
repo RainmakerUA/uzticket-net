@@ -9,13 +9,14 @@ namespace RM.UzTicket.Bot
 {
 	internal static class Program
 	{
-		private static readonly AutoResetEvent _locker = new AutoResetEvent(true);
+		private static readonly AutoResetEvent _locker = new AutoResetEvent(false);
 		private static ProxyManager _proxyMgr;
 
 		private static void Main(string[] args)
 		{
 			Console.InputEncoding = Encoding.UTF8;
 			Console.OutputEncoding = Encoding.UTF8;
+			Console.CancelKeyPress += (sender, eventArgs) => { _locker.Set();  };
 
 			var settings = Settings.Current;
 
@@ -39,22 +40,22 @@ namespace RM.UzTicket.Bot
 
 		private static async void RunBot(TelegramBotClient bot)
 		{
-			var asyncLock = new Utils.AsyncLock(_locker);
+			//var asyncLock = new Utils.AsyncLock(_locker);
 
 			try
 			{
 				var me = await bot.GetMeAsync();
-				Console.WriteLine("Bot online: {0}{1}Press [Enter] to stop bot", me.Username, Environment.NewLine);
-				Console.ReadLine();
+				Console.WriteLine("Bot online: {0}{1}Press [Ctrl+C] to stop bot", me.Username, Environment.NewLine);
+				//Console.ReadLine();
 			}
 			catch (Exception e)
 			{
 				Console.WriteLine(e);
-				Console.ReadLine();
+				//Console.ReadLine();
 			}
 			finally
 			{
-				asyncLock.Dispose();
+				//asyncLock.Dispose();
 			}
 			
 		}
