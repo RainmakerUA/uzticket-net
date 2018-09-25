@@ -25,6 +25,7 @@ namespace RM.UzTicket.Bot
 			_varNames = new[]
 						{
 							"PROXYSRC",
+							"PROXYSCRIPTPATH",
 							"PROXYPATH",
 							"PROXYRE",
 							"TELEBOTKEY",
@@ -60,6 +61,8 @@ namespace RM.UzTicket.Bot
 		public static Settings Current => _current ?? (_current = Load());
 
 		public string ProxySource => GetVariable("PROXYSRC");
+
+		public string ProxyScriptPath => GetVariable("PROXYSCRIPTPATH");
 
 		public string ProxyPath => GetVariable("PROXYPATH");
 

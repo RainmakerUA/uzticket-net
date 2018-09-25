@@ -9,36 +9,58 @@ namespace RM.UzTicket.Bot
 {
 	internal static class Program
 	{
-		private static readonly AutoResetEvent _locker = new AutoResetEvent(false);
+		private class Closure
+		{
+			private readonly AutoResetEvent _event;
+
+			public Closure(AutoResetEvent @event)
+			{
+				_event = @event;
+			}
+
+			public void CancelKeyPressHandler(object sender, ConsoleCancelEventArgs e)
+			{
+				if (!_event.SafeWaitHandle.IsClosed)
+				{
+					_event.Set();
+				}
+			}
+		}
+
 		private static ProxyManager _proxyMgr;
 
 		private static void Main(string[] args)
 		{
-			Console.InputEncoding = Encoding.UTF8;
-			Console.OutputEncoding = Encoding.UTF8;
-			Console.CancelKeyPress += (sender, eventArgs) => { _locker.Set();  };
+			using (var locker = new AutoResetEvent(false))
+			{
+				var closure = new Closure(locker);
 
-			var settings = Settings.Current;
+				Console.InputEncoding = Encoding.UTF8;
+				Console.OutputEncoding = Encoding.UTF8;
+				Console.CancelKeyPress += closure.CancelKeyPressHandler;
 
-			_proxyMgr = new ProxyManager(settings);
+				var settings = Settings.Current;
 
-			var bot = new TelegramBotClient(settings.TeleBotKey);
-			bot.OnMessage += BotOnOnMessage;
+				_proxyMgr = new ProxyManager(settings);
 
-			bot.StartReceiving();
+				var bot = new TelegramBotClient(settings.TeleBotKey);
+				bot.OnMessage += BotOnOnMessage;
 
-			RunBot(bot);
+				bot.StartReceiving();
 
-			var asyncLock = new Utils.AsyncLock(_locker);
-			
-			//Console.ReadLine();
+				RunBot(bot, locker);
 
-			bot.StopReceiving();
+				locker.WaitOne();
 
-			asyncLock.Dispose();
+				bot.StopReceiving();
+
+				Console.CancelKeyPress -= closure.CancelKeyPressHandler;
+
+				//Console.ReadLine();
+			}
 		}
 
-		private static async void RunBot(TelegramBotClient bot)
+		private static async void RunBot(TelegramBotClient bot, AutoResetEvent ev)
 		{
 			//var asyncLock = new Utils.AsyncLock(_locker);
 
@@ -46,7 +68,9 @@ namespace RM.UzTicket.Bot
 			{
 				var me = await bot.GetMeAsync();
 				Console.WriteLine("Bot online: {0}{1}Press [Ctrl+C] to stop bot", me.Username, Environment.NewLine);
-				//Console.ReadLine();
+				Console.ReadLine();
+				Console.WriteLine("Got proxy: {0}", await _proxyMgr.GetProxy());
+				//ev.Set();
 			}
 			catch (Exception e)
 			{

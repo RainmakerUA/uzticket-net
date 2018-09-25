@@ -4,9 +4,10 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
-using System.Threading;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
+using RM.UzTicket.Bot.Utils;
 
 namespace RM.UzTicket.Bot
 {
@@ -39,11 +40,11 @@ namespace RM.UzTicket.Bot
 
 		private static readonly IDictionary<string, string> _proxyRequestData = new Dictionary<string, string>
 																				{
-																					["xpp"] = "2",
-																					["xf1"] = "0",
+																					["xpp"] = "1",
+																					["xf1"] = "1",
 																					["xf2"] = "1",
 																					["xf4"] = "0",
-																					["xf5"] = "0"
+																					["xf5"] = "1"
 																				};
 
 		private readonly Settings _settings;
@@ -76,38 +77,43 @@ namespace RM.UzTicket.Bot
 
 		private async Task LoadProxies()
 		{
-			var listLocked = false;
-
-			try
+			using (AsyncLock.Lock(_proxies))
 			{
-				if (Monitor.TryEnter(_proxies))
+				_proxies.Clear();
+
+				var client = new HttpClient();
+				var req = new HttpRequestMessage(HttpMethod.Post, _settings.ProxySource) { Content = new FormUrlEncodedContent(_proxyRequestData) };
+
+				var resp = await client.SendAsync(req);
+
+				if (resp.IsSuccessStatusCode)
 				{
-					listLocked = true;
+					var htmlDoc = new HtmlDocument();
+					htmlDoc.Load(await resp.Content.ReadAsStreamAsync());
 
-					_proxies.Clear();
+					var scriptNode = htmlDoc.DocumentNode.SelectSingleNode(_settings.ProxyScriptPath);
+					var unpacked = ScriptUnpacker.Unpack(scriptNode.InnerText);
+					var calc = new Calculator(unpacked);
 
-					var client = new HttpClient();
-					var req = new HttpRequestMessage(HttpMethod.Post, _settings.ProxySource) { Content = new FormUrlEncodedContent(_proxyRequestData) };
-
-					var resp = await client.SendAsync(req);
-
-					if (resp.IsSuccessStatusCode)
-					{
-						var htmlDoc = new HtmlDocument();
-						htmlDoc.Load(await resp.Content.ReadAsStreamAsync());
-
-						var nodes = htmlDoc.DocumentNode.SelectNodes(_settings.ProxyPath);
-						_proxies.AddRange(nodes.Select(n => new Proxy(n.InnerText, 8080)).Take(_maxProxies));
-					}
+					var nodes = htmlDoc.DocumentNode.SelectNodes(_settings.ProxyPath);
+					_proxies.AddRange(nodes.Select(n => ParseProxy(n.InnerText, calc, _settings)).Take(_maxProxies));
 				}
 			}
-			finally
+		}
+
+		private static Proxy ParseProxy(string nodeText, Calculator calc, Settings settings)
+		{
+			var re = new Regex(settings.ProxyRegex, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+			var match = re.Match(nodeText);
+
+			if (match.Success)
 			{
-				if (listLocked)
-				{
-					Monitor.Exit(_proxies);
-				}
+				var portParts = match.Groups["port"].Value.Split("+", StringSplitOptions.RemoveEmptyEntries);
+				portParts = Array.ConvertAll(portParts, expr => calc.CalcValue(expr).ToString());
+				return new Proxy(match.Groups["ip"].Value, Int32.Parse(String.Join(String.Empty, portParts)));
 			}
+
+			throw new ArgumentException($"Cannot parse node text '{nodeText}'!");
 		}
 
 		private static async Task<bool> IsProxyValid(Proxy proxy)
@@ -117,6 +123,7 @@ namespace RM.UzTicket.Bot
 			{
 				var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 				socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.SendTimeout, 200);
+				socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReceiveTimeout, 1000);
 
 				var ip = IPAddress.Parse(proxy.IpAddress);
 				var ipep = new IPEndPoint(ip, proxy.Port);
