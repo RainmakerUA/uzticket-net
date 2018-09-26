@@ -8,10 +8,12 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
 using RM.UzTicket.Bot.Utils;
+using RM.UzTicket.Contracts.DataContracts;
+using RM.UzTicket.Contracts.ServiceContracts;
 
 namespace RM.UzTicket.Bot
 {
-	internal class ProxyManager
+	internal class ProxyProvider : IProxyProvider
 	{
 		private struct Proxy
 		{
@@ -47,16 +49,17 @@ namespace RM.UzTicket.Bot
 																					["xf5"] = "1"
 																				};
 
-		private readonly Settings _settings;
+		private readonly ISettingsProvider _settingsProvider;
 		private readonly List<Proxy> _proxies = new List<Proxy>(_maxProxies);
+		private ISettings _settings;
 		private int _currentIndex;
 
-		public ProxyManager(Settings settings)
+		public ProxyProvider(ISettingsProvider provider)
 		{
-			_settings = settings;
+			_settingsProvider = provider;
 		}
 
-		public async Task<string> GetProxy()
+		public async Task<string> GetProxyAsync()
 		{
 			while (_currentIndex >= _proxies.Count || !await IsProxyValid(_proxies[_currentIndex]))
 			{
@@ -81,6 +84,8 @@ namespace RM.UzTicket.Bot
 			{
 				_proxies.Clear();
 
+				_settings = _settingsProvider.GetSettings();
+
 				var client = new HttpClient();
 				var req = new HttpRequestMessage(HttpMethod.Post, _settings.ProxySource) { Content = new FormUrlEncodedContent(_proxyRequestData) };
 
@@ -101,7 +106,7 @@ namespace RM.UzTicket.Bot
 			}
 		}
 
-		private static Proxy ParseProxy(string nodeText, Calculator calc, Settings settings)
+		private static Proxy ParseProxy(string nodeText, Calculator calc, ISettings settings)
 		{
 			var re = new Regex(settings.ProxyRegex, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 			var match = re.Match(nodeText);

@@ -24,10 +24,15 @@ namespace RM.UzTicket.Bot
 				{
 					_event.Set();
 				}
+
+				if (e.SpecialKey == ConsoleSpecialKey.ControlBreak)
+				{
+					Environment.Exit(0);
+				}
 			}
 		}
 
-		private static ProxyManager _proxyMgr;
+		private static ProxyProvider _proxyMgr;
 
 		private static void Main(string[] args)
 		{
@@ -39,18 +44,23 @@ namespace RM.UzTicket.Bot
 				Console.OutputEncoding = Encoding.UTF8;
 				Console.CancelKeyPress += closure.CancelKeyPressHandler;
 
-				var settings = Settings.Current;
+				var provider = SettingsProvider.Current;
+				var settings = provider.GetSettings();
 
-				_proxyMgr = new ProxyManager(settings);
+				_proxyMgr = new ProxyProvider(provider);
 
 				var bot = new TelegramBotClient(settings.TeleBotKey);
 				bot.OnMessage += BotOnOnMessage;
+				bot.OnReceiveError += (sender, eventArgs) => Console.WriteLine("Bot receive error:{0}{1}", Environment.NewLine, eventArgs.ApiRequestException);
+				bot.OnReceiveGeneralError += (sender, eventArgs) => Console.WriteLine("Bot general receive error:{0}{1}", Environment.NewLine, eventArgs.Exception);
 
 				bot.StartReceiving();
 
 				RunBot(bot, locker);
 
 				locker.WaitOne();
+
+				Console.WriteLine("Got shutdown signal. Stopping application...");
 
 				bot.StopReceiving();
 
@@ -68,8 +78,8 @@ namespace RM.UzTicket.Bot
 			{
 				var me = await bot.GetMeAsync();
 				Console.WriteLine("Bot online: {0}{1}Press [Ctrl+C] to stop bot", me.Username, Environment.NewLine);
-				Console.ReadLine();
-				Console.WriteLine("Got proxy: {0}", await _proxyMgr.GetProxy());
+				//Console.ReadLine();
+				Console.WriteLine("Got proxy: {0}", await _proxyMgr.GetProxyAsync());
 				//ev.Set();
 			}
 			catch (Exception e)
@@ -86,7 +96,7 @@ namespace RM.UzTicket.Bot
 
 		private static async void BotOnOnMessage(object sender, MessageEventArgs e)
 		{
-			var proxy = await _proxyMgr.GetProxy();
+			var proxy = await _proxyMgr.GetProxyAsync();
 
 			Console.WriteLine("Got message: {0} from {1} with locale {2}", e.Message.Text, e.Message.From.Username, e.Message.From.LanguageCode);
 			Console.WriteLine($"Got proxy: {proxy}");

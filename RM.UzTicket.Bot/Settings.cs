@@ -4,11 +4,35 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using RM.UzTicket.Contracts.DataContracts;
+using RM.UzTicket.Contracts.ServiceContracts;
 
 namespace RM.UzTicket.Bot
 {
-	internal class Settings
+	internal class SettingsProvider : ISettingsProvider
 	{
+		private class SettingsData : ISettings
+		{
+			public SettingsData(string proxySource, string proxyScriptPath, string proxyPath, string proxyRegex, string teleBotKey)
+			{
+				ProxySource = proxySource;
+				ProxyScriptPath = proxyScriptPath;
+				ProxyPath = proxyPath;
+				ProxyRegex = proxyRegex;
+				TeleBotKey = teleBotKey;
+			}
+
+			public string ProxySource { get; }
+
+			public string ProxyScriptPath { get; }
+
+			public string ProxyPath { get; }
+
+			public string ProxyRegex { get; }
+
+			public string TeleBotKey { get; }
+		}
+
 		private const string _varPrefix = "UZTB_";
 #if DEBUG
 		private const string _env = ".env";
@@ -16,11 +40,11 @@ namespace RM.UzTicket.Bot
 #endif
 		private static readonly string[] _varNames;
 
-		private static Settings _current;
+		private static SettingsProvider _current;
 
 		private readonly IDictionary<string, string> _variables = new Dictionary<string, string>();
 
-		static Settings()
+		static SettingsProvider()
 		{
 			_varNames = new[]
 						{
@@ -32,7 +56,7 @@ namespace RM.UzTicket.Bot
 			            }.Select(s => $"{_varPrefix}{s}").ToArray();
 		}
 
-		public Settings()
+		public SettingsProvider()
 		{
 			foreach (var varName in _varNames)
 			{
@@ -41,7 +65,7 @@ namespace RM.UzTicket.Bot
 		}
 
 #if DEBUG
-		public Settings(string envContent)
+		public SettingsProvider(string envContent)
 		{
 			foreach (var varName in _varNames)
 			{
@@ -58,34 +82,33 @@ namespace RM.UzTicket.Bot
 		}
 #endif
 
-		public static Settings Current => _current ?? (_current = Load());
-
-		public string ProxySource => GetVariable("PROXYSRC");
-
-		public string ProxyScriptPath => GetVariable("PROXYSCRIPTPATH");
-
-		public string ProxyPath => GetVariable("PROXYPATH");
-
-		public string ProxyRegex => GetVariable("PROXYRE");
-
-		public string TeleBotKey => GetVariable("TELEBOTKEY");
+		public static SettingsProvider Current => _current ?? (_current = Load());
+		
+		public ISettings GetSettings()
+		{
+			return new SettingsData(
+								GetVariable("PROXYSRC"), GetVariable("PROXYSCRIPTPATH"),
+								GetVariable("PROXYPATH"), GetVariable("PROXYRE"),
+								GetVariable("TELEBOTKEY")
+							);
+		}
 
 		private string GetVariable(string name)
 		{
 			return _variables.TryGetValue(_varPrefix + name, out var value) ? value : null;
 		}
 
-		private static Settings Load()
+		private static SettingsProvider Load()
 		{
 #if DEBUG
 			var envFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), _env);
 
 			if (File.Exists(envFile))
 			{
-				return new Settings(File.ReadAllText(envFile));
+				return new SettingsProvider(File.ReadAllText(envFile));
 			}
 #endif
-			return new Settings();
+			return new SettingsProvider();
 		}
 	}
 }

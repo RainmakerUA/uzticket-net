@@ -14,6 +14,10 @@
     <Folder Include="Properties\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\RM.UzTicket.Contracts\RM.UzTicket.Contracts.csproj" />
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command=":; exit 0&#xD;&#xA;if $(ConfigurationName) == Debug copy /A /Y $(SolutionDir).env $(ProjectDir)$(OutDir).env" />
   </Target>
