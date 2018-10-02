@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema targetNamespace="urn:rm/module.config"
+		   attributeFormDefault="unqualified"
+		   elementFormDefault="qualified"
+		   finalDefault="#all"
+		   xmlns="urn:rm/module.config"
+		   xmlns:mstns="urn:rm/module.config"
+		   xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:simpleType name="type">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="^[a-zA-Z]+[a-zA-Z0-9_.]*,\s*[a-zA-Z]+[a-zA-Z0-9_.]*$"/>
+			<xs:maxLength value="500" fixed="true"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="name">
+		<xs:restriction base="xs:string">
+			<xs:pattern value="^[a-zA-Z_][a-zA-Z0-9_.]+$"/>
+			<xs:maxLength value="128" fixed="true"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="lifetimes" final="restriction" >
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="Single" />
+			<xs:enumeration value="PerCall" />
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="constructions" final="restriction" >
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="Mapped" />
+			<xs:enumeration value="DefaultCtor" />
+			<xs:enumeration value="Factory" />
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="dependency">
+		<xs:annotation>
+			<xs:documentation>Dependency definition</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="to" type="type" use="required">
+			<xs:annotation>
+				<xs:documentation>Interface to map to</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="from" type="type">
+			<xs:annotation>
+				<xs:documentation>Class to map from</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="lifetime" type="lifetimes" default="PerCall">
+			<xs:annotation>
+				<xs:documentation>Container lifetime type (Single, PerCall)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="construction" type="constructions" default="Mapped">
+			<xs:annotation>
+				<xs:documentation>Container construction type (Mapped, DefaultCtor, Factory)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="constructionFactory" type="type">
+			<xs:annotation>
+				<xs:documentation>Construction Factory type</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="constructionMethod" type="name">
+			<xs:annotation>
+				<xs:documentation>Construction Factory method</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="name" type="name">
+			<xs:annotation>
+				<xs:documentation>Name of a dependency (for named dependencies)</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<xs:complexType name="externalDependencies">
+		<xs:sequence>
+			<xs:element name="dependency" type="dependency" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="module">
+		<xs:annotation>
+			<xs:documentation>Module configuration</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:all>
+				<xs:element name="externalDependencies" type="externalDependencies" minOccurs="0" maxOccurs="1">
+					<xs:annotation>
+						<xs:documentation>Modules dependencies</xs:documentation>
+					</xs:annotation>
+					<xs:unique name="keyComponent">
+						<xs:selector xpath="mstns:dependency"/>
+						<xs:field xpath="@to"/>
+					</xs:unique>
+				</xs:element>
+			</xs:all>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Text;
 using System.Threading;
-using Telegram.Bot;
-using Telegram.Bot.Args;
-using Telegram.Bot.Types.Enums;
+using RM.UzTicket.Contracts.DataContracts;
+using RM.UzTicket.Contracts.ServiceContracts;
+using RM.UzTicket.Hosting;
+using RM.UzTicket.Utility;
 
 namespace RM.UzTicket.Bot
 {
@@ -11,18 +12,18 @@ namespace RM.UzTicket.Bot
 	{
 		private class Closure
 		{
-			private readonly AutoResetEvent _event;
+			private readonly IApplicationHost _host;
 
-			public Closure(AutoResetEvent @event)
+			public Closure(IApplicationHost host)
 			{
-				_event = @event;
+				_host = host;
 			}
 
 			public void CancelKeyPressHandler(object sender, ConsoleCancelEventArgs e)
 			{
-				if (!_event.SafeWaitHandle.IsClosed)
+				if (_host.State == HostState.Started)
 				{
-					_event.Set();
+					_host.Stop(); //TODO: Timeout with Ctrl+Break
 				}
 
 				if (e.SpecialKey == ConsoleSpecialKey.ControlBreak)
@@ -32,44 +33,50 @@ namespace RM.UzTicket.Bot
 			}
 		}
 
-		private static ProxyProvider _proxyMgr;
+		//private static IProxyProvider _proxyProvider;
 
 		private static void Main(string[] args)
 		{
 			using (var locker = new AutoResetEvent(false))
 			{
-				var closure = new Closure(locker);
-
-				Console.InputEncoding = Encoding.UTF8;
+				var host = new ApplicationHost<DefaultHostInitializer>();
+				var closure = new Closure(host);
+				
+				//Console.InputEncoding = Encoding.UTF8;
 				Console.OutputEncoding = Encoding.UTF8;
 				Console.CancelKeyPress += closure.CancelKeyPressHandler;
 
-				var provider = SettingsProvider.Current;
-				var settings = provider.GetSettings();
 
-				_proxyMgr = new ProxyProvider(provider);
+				LogFactory.SetDefaultLog(new ConsoleLog());
 
-				var bot = new TelegramBotClient(settings.TeleBotKey);
-				bot.OnMessage += BotOnOnMessage;
-				bot.OnReceiveError += (sender, eventArgs) => Console.WriteLine("Bot receive error:{0}{1}", Environment.NewLine, eventArgs.ApiRequestException);
-				bot.OnReceiveGeneralError += (sender, eventArgs) => Console.WriteLine("Bot general receive error:{0}{1}", Environment.NewLine, eventArgs.Exception);
+				host.Initialize();
 
-				bot.StartReceiving();
+				//var resolver = host.Environment.Resolver;
+				//var provider = resolver.Get<ISettingsProvider>();
+				//var settings = provider.GetSettings();
+				//_proxyProvider = resolver.Get<IProxyProvider>();
 
-				RunBot(bot, locker);
+				//var bot = new TelegramBotClient(settings.TeleBotKey);
+				//bot.OnMessage += BotOnOnMessage;
+				//bot.OnReceiveError += (sender, eventArgs) => Console.WriteLine("Bot receive error:{0}{1}", Environment.NewLine, eventArgs.ApiRequestException);
+				//bot.OnReceiveGeneralError += (sender, eventArgs) => Console.WriteLine("Bot general receive error:{0}{1}", Environment.NewLine, eventArgs.Exception);
+
+				//host.Started += (sender, eventArgs) => bot.StartReceiving();
+				//host.Stopping += (sender, eventArgs) => bot.StopReceiving();
+				host.Stopped += (sender, eventArgs) => locker.Set();
+
+				//RunBot(bot, locker);
+				host.Start();
 
 				locker.WaitOne();
 
 				Console.WriteLine("Got shutdown signal. Stopping application...");
-
-				bot.StopReceiving();
-
 				Console.CancelKeyPress -= closure.CancelKeyPressHandler;
 
 				//Console.ReadLine();
 			}
 		}
-
+		/*
 		private static async void RunBot(TelegramBotClient bot, AutoResetEvent ev)
 		{
 			//var asyncLock = new Utils.AsyncLock(_locker);
@@ -79,7 +86,7 @@ namespace RM.UzTicket.Bot
 				var me = await bot.GetMeAsync();
 				Console.WriteLine("Bot online: {0}{1}Press [Ctrl+C] to stop bot", me.Username, Environment.NewLine);
 				//Console.ReadLine();
-				Console.WriteLine("Got proxy: {0}", await _proxyMgr.GetProxyAsync());
+				//Console.WriteLine("Got proxy: {0}", await _proxyMgr.GetProxyAsync());
 				//ev.Set();
 			}
 			catch (Exception e)
@@ -93,18 +100,6 @@ namespace RM.UzTicket.Bot
 			}
 			
 		}
-
-		private static async void BotOnOnMessage(object sender, MessageEventArgs e)
-		{
-			var proxy = await _proxyMgr.GetProxyAsync();
-
-			Console.WriteLine("Got message: {0} from {1} with locale {2}", e.Message.Text, e.Message.From.Username, e.Message.From.LanguageCode);
-			Console.WriteLine($"Got proxy: {proxy}");
-
-			if (sender is ITelegramBotClient iBot)
-			{
-				var msg = await iBot.SendTextMessageAsync(e.Message.Chat.Id, $"Got your <em>message</em>. Use proxy: {proxy}", ParseMode.Html, replyToMessageId: e.Message.MessageId);
-			}
-		}
+		*/
 	}
 }

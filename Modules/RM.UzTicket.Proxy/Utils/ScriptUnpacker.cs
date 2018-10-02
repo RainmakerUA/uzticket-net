@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text.RegularExpressions;
 
-namespace RM.UzTicket.Bot.Utils
+namespace RM.UzTicket.Proxy.Utils
 {
 	internal class ScriptUnpacker
 	{

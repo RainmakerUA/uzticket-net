@@ -7,11 +7,12 @@ using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
-using RM.UzTicket.Bot.Utils;
 using RM.UzTicket.Contracts.DataContracts;
 using RM.UzTicket.Contracts.ServiceContracts;
+using RM.UzTicket.Utility;
+using RM.UzTicket.Proxy.Utils;
 
-namespace RM.UzTicket.Bot
+namespace RM.UzTicket.Proxy
 {
 	internal class ProxyProvider : IProxyProvider
 	{
@@ -61,11 +62,11 @@ namespace RM.UzTicket.Bot
 
 		public async Task<string> GetProxyAsync()
 		{
-			while (_currentIndex >= _proxies.Count || !await IsProxyValid(_proxies[_currentIndex]))
+			while (_currentIndex >= _proxies.Count || !await IsProxyValidAsync(_proxies[_currentIndex]))
 			{
 				if (_proxies.Count == 0)
 				{
-					await LoadProxies();
+					await LoadProxiesAsync();
 					_currentIndex = 0;
 				}
 				else
@@ -78,7 +79,7 @@ namespace RM.UzTicket.Bot
 			return _proxies[_currentIndex].ToString();
 		}
 
-		private async Task LoadProxies()
+		private async Task LoadProxiesAsync()
 		{
 			using (AsyncLock.Lock(_proxies))
 			{
@@ -121,7 +122,7 @@ namespace RM.UzTicket.Bot
 			throw new ArgumentException($"Cannot parse node text '{nodeText}'!");
 		}
 
-		private static async Task<bool> IsProxyValid(Proxy proxy)
+		private static async Task<bool> IsProxyValidAsync(Proxy proxy)
 		{
 			var isSuccess = false;
 			try

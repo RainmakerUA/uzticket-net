@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Threading;
 
-namespace RM.UzTicket.Bot.Utils
+namespace RM.UzTicket.Utility
 {
-	internal sealed class AsyncLock : IDisposable
+	public sealed class AsyncLock : IDisposable
 	{
 		private static readonly ObjectIDGenerator _idGen = new ObjectIDGenerator();
 		private static readonly IDictionary<long, AutoResetEvent> _events = new ConcurrentDictionary<long, AutoResetEvent>();
