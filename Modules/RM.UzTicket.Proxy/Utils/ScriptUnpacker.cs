@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace RM.UzTicket.Proxy.Utils
 {
-	internal class ScriptUnpacker
+                                  	internal static class ScriptUnpacker
 	{
 		private class Unbaser
 		{
