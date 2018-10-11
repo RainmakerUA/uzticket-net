@@ -4,7 +4,8 @@ obj/
 bin/
 packages/
 TestResults/
-
+# Rider folders
+.idea/
 # Files
 .env
 *~
