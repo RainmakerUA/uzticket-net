@@ -72,8 +72,8 @@ namespace RM.Lib.StateMachine
 					var newStateValue = selectedTran.ToState;
 					var newState = _states[newStateValue];
 
-					_currentState.Value.OnLeave(currentState, input);
-					newState.OnEnter(newStateValue, input);
+					_currentState.Value.OnLeave?.Invoke(currentState, input);
+					newState.OnEnter?.Invoke(newStateValue, input);
 					_currentState = newState;
 
 					if (_transitions[newStateValue].Count == 0)
@@ -85,7 +85,8 @@ namespace RM.Lib.StateMachine
 				}
 			}
 
-			_currentState?.OnTransitionError(currentState, input);
+			_currentState?.OnTransitionError?.Invoke(currentState, input);
+
 			return false;
 		}
 
