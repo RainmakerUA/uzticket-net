@@ -1,4 +1,5 @@
-﻿using RM.UzTicket.Contracts.ServiceContracts;
+﻿using RM.Lib.Hosting.Contracts;
+using RM.UzTicket.Settings.Contracts;
 
 namespace RM.UzTicket.Settings.Properties
 {

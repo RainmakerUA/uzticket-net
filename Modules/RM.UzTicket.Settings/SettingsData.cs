@@ -1,4 +1,4 @@
-﻿using RM.UzTicket.Contracts.DataContracts;
+﻿using RM.UzTicket.Settings.Contracts;
 
 namespace RM.UzTicket.Settings
 {

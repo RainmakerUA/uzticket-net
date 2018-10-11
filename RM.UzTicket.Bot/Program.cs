@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Text;
 using System.Threading;
-using RM.UzTicket.Contracts.DataContracts;
-using RM.UzTicket.Contracts.ServiceContracts;
-using RM.UzTicket.Hosting;
-using RM.UzTicket.Utility;
+using RM.Lib.Hosting;
+using RM.Lib.Hosting.Contracts;
+using RM.Lib.Utility;
 
 namespace RM.UzTicket.Bot
 {
@@ -28,13 +27,13 @@ namespace RM.UzTicket.Bot
 
 				if (e.SpecialKey == ConsoleSpecialKey.ControlBreak)
 				{
+					Console.WriteLine("Terminating app in 10 seconds...");
+					Thread.Sleep(TimeSpan.FromSeconds(10));
 					Environment.Exit(0);
 				}
 			}
 		}
-
-		//private static IProxyProvider _proxyProvider;
-
+		
 		private static void Main(string[] args)
 		{
 			using (var locker = new AutoResetEvent(false))

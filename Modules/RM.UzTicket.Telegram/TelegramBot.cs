@@ -1,6 +1,10 @@
 ﻿using System;
-using RM.UzTicket.Contracts.ServiceContracts;
-using RM.UzTicket.Utility;
+using RM.Lib.Common.Contracts.Log;
+using RM.Lib.Hosting.Contracts;
+using RM.Lib.Proxy.Contracts;
+using RM.Lib.Utility;
+using RM.UzTicket.Settings.Contracts;
+using RM.UzTicket.Telegram.Contracts;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 using Telegram.Bot.Types.Enums;

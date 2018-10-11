@@ -1,5 +1,5 @@
 ﻿using System;
-using RM.UzTicket.Contracts.ServiceContracts;
+using RM.Lib.Common.Contracts.Log;
 
 namespace RM.UzTicket.Bot
 {

@@ -4,8 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using RM.UzTicket.Contracts.DataContracts;
-using RM.UzTicket.Contracts.ServiceContracts;
+using RM.UzTicket.Settings.Contracts;
 
 namespace RM.UzTicket.Settings
 {

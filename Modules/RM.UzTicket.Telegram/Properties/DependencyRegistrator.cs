@@ -1,4 +1,5 @@
-﻿using RM.UzTicket.Contracts.ServiceContracts;
+﻿using RM.Lib.Hosting.Contracts;
+using RM.UzTicket.Telegram.Contracts;
 
 namespace RM.UzTicket.Telegram.Properties
 {

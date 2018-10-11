@@ -2,11 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Contracts\RM.Lib.Hosting.Contracts\RM.Lib.Hosting.Contracts.csproj" />
-    <ProjectReference Include="..\..\Contracts\RM.UzTicket.Settings.Contracts\RM.UzTicket.Settings.Contracts.csproj" />
+    <ProjectReference Include="..\..\Contracts\RM.Lib.StateMachine.Contracts\RM.Lib.StateMachine.Contracts.csproj" />
+    <ProjectReference Include="..\..\RM.Lib.Utility\RM.Lib.Utility.csproj" />
   </ItemGroup>
 
 </Project>
