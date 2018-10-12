@@ -70,7 +70,7 @@ namespace RM.UzTicket.Bot
 						.AddTransition(DayOfWeek.Sunday, DayOfWeek.Monday, (e, dw, dwNew, inp) => true)
 						.Build(EventArgs.Empty);
 				sm.MoveNext("test");
-
+				
 				//RunBot(bot, locker);
 				host.Start();
 
