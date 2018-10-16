@@ -23,9 +23,9 @@ namespace RM.Lib.StateMachine
 			_states = GetStates(builder, implementation);
 			_transitions = new TransitionCollection(GetTransitions(builder, implementation));
 
-			var zero = GetZeroValue();
+			var initial = builder.InitialState ?? GetZeroValue();
 
-			_initialState = _states.TryGetValue(zero, out var zeroState)
+			_initialState = _states.TryGetValue(initial, out var zeroState)
 								? zeroState
 								: throw new ArgumentException("State machine must contain initial state with field value = 0");
 			Reset();

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using RM.Lib.Hosting;
@@ -65,14 +66,31 @@ namespace RM.UzTicket.Bot
 				//host.Stopping += (sender, eventArgs) => bot.StopReceiving();
 				host.Stopped += (sender, eventArgs) => locker.Set();
 
-				var sm = resolver.Get<IStateMachineBuilder<DayOfWeek, EventArgs, string>>()
-						.AddDefaultStates((e, dw, inp) => Console.WriteLine($"Came here by input: {inp}"), null, null)
-						.AddTransition(DayOfWeek.Sunday, DayOfWeek.Monday, (e, dw, dwNew, inp) => true)
-						.Build(EventArgs.Empty);
-				sm.MoveNext("test");
+				var assembly = Assembly.GetExecutingAssembly();
+				var asmName = assembly.GetName().Name;
+				var builder = resolver.Get<IStateMachineBuilder<TestState, StateMachineStuff, string>>();
+				IStateMachine<TestState, StateMachineStuff, string> sm;
+
+				using (var str = assembly.GetManifestResourceStream($"{asmName}.Properties.testmachine.scxml"))
+				{
+					sm = builder.BuildFromXml(str, new StateMachineStuff());
+				}
+				
+//				var sm = resolver.Get<IStateMachineBuilder<DayOfWeek, EventArgs, string>>()
+//							.AddDefaultStates((e, dw, inp) => Console.WriteLine($"Came here by input: {inp}"), null, null)
+//							.AddTransition(DayOfWeek.Sunday, DayOfWeek.Monday, (e, dw, dwNew, inp) => true)
+//							.Build(EventArgs.Empty);
+//				sm.MoveNext("test");
 				
 				//RunBot(bot, locker);
 				host.Start();
+
+				string inp;
+
+				while (!String.IsNullOrEmpty(inp = Console.ReadLine()))
+				{
+					sm.MoveNext(inp);
+				}
 
 				locker.WaitOne();
 

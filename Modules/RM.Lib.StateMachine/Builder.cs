@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Linq.Expressions;
+using System.Xml;
+using System.Xml.Linq;
 using RM.Lib.StateMachine.Contracts;
+using RM.Lib.Utility;
 
 namespace RM.Lib.StateMachine
 {
@@ -64,9 +68,70 @@ namespace RM.Lib.StateMachine
 
 			public IStateMachine<TState, TImpl, TInput> BuildFromXml(Stream xmlStream, TImpl implementation)
 			{
-				//TODO: Load and parse XML
+				var doc = XDocument.Load(xmlStream);
+				var root = doc.Root;
 
-				return Build(implementation);
+				if (root != null)
+				{
+					SetBasicInfo(
+								root.Attribute("name")?.Value,
+								root.Element(XmlNames.DatamodelName)?.Value,
+								Enum.TryParse<TState>(root.Attribute("initial")?.Value ?? String.Empty, true, out var initState)
+											? initState
+											: default
+							);
+
+					foreach (var stateEl in root.Elements(XmlNames.StateName))
+					{
+						var state = (TState) Enum.Parse(typeof(TState), stateEl.Attribute(XmlNames.Id).Value, true);
+						var onEnter = stateEl.Element(XmlNames.OnEntryName)?.Value;
+						var onLeave = stateEl.Element(XmlNames.OnExitName)?.Value;
+						var onTransError = ParseStateDataModel(stateEl.Element(XmlNames.DatamodelName));
+
+						AddState(
+								state,
+								onEnter?.MakeActionExpression<TImpl, TState, TInput>(),
+								onTransError?.MakeActionExpression<TImpl, TState, TInput>(),
+								onLeave?.MakeActionExpression<TImpl, TState, TInput>()
+							);
+
+						foreach (var transEl in stateEl.Elements(XmlNames.TransitionName))
+						{
+							var toState = (TState) Enum.Parse(typeof(TState), transEl.Attribute("target").Value, true);
+							var condition = transEl.Attribute("cond")?.Value;
+
+							AddTransition(
+										state, toState,
+										condition?.MakeFuncExpression<TImpl, TState, TState, TInput, bool>()
+									);
+						}
+					}
+
+					return Build(implementation);
+				}
+				
+				throw new Exception("Error parsing State Machine XML!");
+			}
+
+			private static string ParseStateDataModel(XElement dataModelEl)
+			{
+				if (dataModelEl != null)
+				{
+					var nodes = dataModelEl.Nodes().ToArray();
+					
+					if (nodes.Length == 1 && nodes[0].NodeType == XmlNodeType.Text)
+					{
+						return (nodes[0] as XText)?.Value;
+					}
+
+					return nodes.OfType<XElement>().FirstOrDefault(
+														xEl => xEl.Name == XmlNames.DataName
+																&& "onerror".Equals(xEl.Attribute(XmlNames.Id)?.Value, StringComparison.Ordinal)
+													)?.Value
+							?? nodes.OfType<XElement>().SingleOrDefault(xEl => xEl.Name == XmlNames.DataName)?.Value;
+				}
+
+				return null;
 			}
 		}
 	}

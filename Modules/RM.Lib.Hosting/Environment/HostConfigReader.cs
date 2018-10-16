@@ -90,7 +90,7 @@ namespace RM.Lib.Hosting.Environment
 			LoadConfig(configFileStream);
 		}
 
-		private Stream GetConfigResourceStream(Assembly assembly)
+		private static Stream GetConfigResourceStream(Assembly assembly)
 		{
 			var assemblyName = assembly.GetName().Name;
 			return assembly.GetManifestResourceStream($"{assemblyName}.Properties.host.config");

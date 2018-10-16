@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Properties\host.config" />
+    <None Remove="Properties\testmachine.scxml" />
+    <EmbeddedResource Include="Properties\testmachine.scxml" />
   </ItemGroup>
 
   <ItemGroup>

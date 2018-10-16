@@ -1,0 +1,27 @@
+<scxml initial="Unknown" name="AppHost Machine" version="1.0" xmlns="http://www.w3.org/2005/07/scxml"><!--   node-size-and-position x=0 y=0 w=190 h=390  -->
+ <datamodel>RM.UZTicket.Bot.StateMachineStuff</datamodel>
+ <state id="Unknown"><!--   node-size-and-position x=20 y=43 w=75 h=75  -->
+  <datamodel>
+   <data id="onerror">OnTransitionError</data>
+  </datamodel>
+  <onentry>OnStateEnter</onentry>
+  <onexit>OnStateLeave</onexit>
+  <transition cond="CanTransition" target="Initialized"><!--   edge-path [Initialized]  x=67,5 y=143  --></transition>
+ </state>
+ <state id="Initialized"><!--   node-size-and-position x=20 y=168 w=75 h=75  -->
+  <datamodel>OnTransitionError</datamodel>
+  <onentry>OnStateEnter</onentry>
+  <onexit>OnStateLeave</onexit>
+  <transition cond="CanTransition" target="Started"><!--   edge-path [Started]  x=67,5 y=268  --></transition>
+  <transition cond="CanTransition" target="Unknown"><!--   edge-path [Unknown]  x=47,5 y=143  --></transition>
+ </state>
+ <state id="Started"><!--   node-size-and-position x=20 y=293 w=75 h=75  -->
+  <datamodel>
+   <data>OnTransitionError</data>
+  </datamodel>
+  <onentry>OnStateEnter</onentry>
+  <onexit>OnStateLeave</onexit>
+  <transition cond="CanTransition" target="Initialized"><!--   edge-path [Initialized]  x=47,5 y=268  --></transition>
+  <transition cond="CanTransition" target="Unknown"><!--   edge-path [Unknown]  x=125,5 y=205,5  --></transition>
+ </state>
+</scxml>
