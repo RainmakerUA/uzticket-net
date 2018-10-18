@@ -62,8 +62,9 @@ namespace RM.Lib.StateMachine
 
 			public IStateMachine<TState, TImpl, TInput> Build(TImpl implementation)
 			{
-				//TODO: Validate!
-				return new Machine<TState, TImpl, TInput>(implementation ?? throw new ArgumentNullException(nameof(implementation)), this);
+				Validate(implementation);
+
+				return new Machine<TState, TImpl, TInput>(implementation, this);
 			}
 
 			public IStateMachine<TState, TImpl, TInput> BuildFromXml(Stream xmlStream, TImpl implementation)
@@ -113,6 +114,66 @@ namespace RM.Lib.StateMachine
 				throw new Exception("Error parsing State Machine XML!");
 			}
 
+			private void Validate(TImpl implementation)
+			{
+				if (implementation == null)
+				{
+					throw new ArgumentNullException(nameof(implementation));
+				}
+
+				if (!String.IsNullOrEmpty(ImplementingType))
+				{
+					var type = Type.GetType(ImplementingType);
+
+					if (type == null)
+					{
+						throw new StateMachineException($"Implementing type {ImplementingType}");
+					}
+
+					if (!type.IsInstanceOfType(implementation))
+					{
+						throw new StateMachineException($"Implementation instance (of type {implementation.GetType()}) is not of expected type {type.FullName}");
+					}
+				}
+
+				if (InitialState.HasValue && !IsStateDefined(InitialState.Value))
+				{
+					throw new StateMachineException($"Initial state {InitialState.Value} is not defined for the state machine!");
+				}
+
+				var duplicateState = _states.GroupBy(t => t.stateValue).FirstOrDefault(g => g.Count() > 1)?.Key;
+
+				if (duplicateState.HasValue)
+				{
+					throw new StateMachineException($"More than one state with value {duplicateState.Value} is defined!");
+				}
+
+				var sameStateTransition = GetFirstOrNull(_transitions, tr => tr.HasValue && tr.Value.fromState.Equals(tr.Value.toState))?.fromState;
+
+				if (sameStateTransition.HasValue)
+				{
+					throw new StateMachineException($"A transition between the same state with value {sameStateTransition.Value} is defined!");
+				}
+
+				var (fromState, toState, fromStateUndef, toStateUndef) = _transitions.Select(t => (t.fromState, t.toState, fromStateUndef: !IsStateDefined(t.fromState), toStateUndef: !IsStateDefined(t.toState)))
+						.FirstOrDefault(tt => tt.fromStateUndef || tt.toStateUndef);
+
+				if (fromStateUndef)
+				{
+					throw new StateMachineException($"A transition FROM the undefined state {fromState} exists!");
+				}
+
+				if (toStateUndef)
+				{
+					throw new StateMachineException($"A transition TO the undefined state {toState} exists!");
+				}
+			}
+
+			private bool IsStateDefined(TState state)
+			{
+				return _states.FindIndex(t => t.stateValue.Equals(state)) >= 0;
+			}
+
 			private static string ParseStateDataModel(XElement dataModelEl)
 			{
 				if (dataModelEl != null)
@@ -132,6 +193,11 @@ namespace RM.Lib.StateMachine
 				}
 
 				return null;
+			}
+
+			private static T? GetFirstOrNull<T>(IEnumerable<T> sequence, Func<T?, bool> condition) where T : struct
+			{
+				return sequence.Cast<T?>().FirstOrDefault(condition);
 			}
 		}
 	}

@@ -1,5 +1,5 @@
 <scxml initial="Unknown" name="AppHost Machine" version="1.0" xmlns="http://www.w3.org/2005/07/scxml"><!--   node-size-and-position x=0 y=0 w=190 h=390  -->
- <datamodel>RM.UZTicket.Bot.StateMachineStuff</datamodel>
+ <datamodel>RM.UzTicket.Bot.StateMachineStuff, RM.UzTicket.Bot, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null</datamodel> <!-- Type.AssemblyQualifiedName -->
  <state id="Unknown"><!--   node-size-and-position x=20 y=43 w=75 h=75  -->
   <datamodel>
    <data id="onerror">OnTransitionError</data>

@@ -87,6 +87,7 @@ namespace RM.UzTicket.Bot
 
 				string inp;
 
+
 				while (!String.IsNullOrEmpty(inp = Console.ReadLine()))
 				{
 					sm.MoveNext(inp);
