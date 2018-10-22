@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace RM.Lib.Utility
 {
 	public sealed class AsyncLock : IDisposable
 	{
-		private static readonly ObjectIDGenerator _idGen = new ObjectIDGenerator();
 		private static readonly IDictionary<long, AutoResetEvent> _events = new ConcurrentDictionary<long, AutoResetEvent>();
 		private readonly AutoResetEvent _event;
 
@@ -42,9 +41,9 @@ namespace RM.Lib.Utility
 
 		private static AutoResetEvent GetEvent(object lockObject, bool initialState)
 		{
-			lock (_idGen)
+			lock (_events)
 			{
-				var id = _idGen.GetId(lockObject, out _);
+				var id = RuntimeHelpers.GetHashCode(lockObject);
 
 				if (!_events.TryGetValue(id, out var @event))
 				{

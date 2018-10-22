@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using RM.Lib.Hosting;
 using RM.Lib.Hosting.Contracts;
 using RM.Lib.StateMachine.Contracts;
 using RM.Lib.Utility;
+using RM.UzTicket.Telegram.Contracts;
 
 namespace RM.UzTicket.Bot
 {
@@ -53,6 +55,7 @@ namespace RM.UzTicket.Bot
 				host.Initialize();
 
 				var resolver = host.Environment.Resolver;
+				var telebot = resolver.Get<ITelegramBot>();
 				//var provider = resolver.Get<ISettingsProvider>();
 				//var settings = provider.GetSettings();
 				//_proxyProvider = resolver.Get<IProxyProvider>();
@@ -65,7 +68,7 @@ namespace RM.UzTicket.Bot
 				//host.Started += (sender, eventArgs) => bot.StartReceiving();
 				//host.Stopping += (sender, eventArgs) => bot.StopReceiving();
 				host.Stopped += (sender, eventArgs) => locker.Set();
-
+/*
 				var assembly = Assembly.GetExecutingAssembly();
 				var asmName = assembly.GetName().Name;
 				var builder = resolver.Get<IStateMachineBuilder<TestState, StateMachineStuff, string>>();
@@ -81,10 +84,13 @@ namespace RM.UzTicket.Bot
 //							.AddTransition(DayOfWeek.Sunday, DayOfWeek.Monday, (e, dw, dwNew, inp) => true)
 //							.Build(EventArgs.Empty);
 //				sm.MoveNext("test");
-				
+*/				
 				//RunBot(bot, locker);
 				host.Start();
-
+				
+				telebot.SendMasterMessage("Application started");
+				
+				/*
 				string inp;
 
 
@@ -92,9 +98,10 @@ namespace RM.UzTicket.Bot
 				{
 					sm.MoveNext(inp);
 				}
-
+*/
 				locker.WaitOne();
 
+				telebot.SendMasterMessage("Application stopping");
 				Console.WriteLine("Got shutdown signal. Stopping application...");
 				Console.CancelKeyPress -= closure.CancelKeyPressHandler;
 

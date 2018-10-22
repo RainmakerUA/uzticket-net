@@ -8,7 +8,7 @@ namespace RM.Lib.Hosting
 	public class BaseDependencyResolver : IDependencyResolver
 	{
 		private readonly IServiceScope _scope;
-		private IList<Action<IDependencyResolver>> _moduleInitializers;
+		private readonly IList<Action<IDependencyResolver>> _moduleInitializers;
 		protected IServiceProvider Provider;
 
 		private BaseDependencyResolver(IServiceScope scope) : this(scope?.ServiceProvider)

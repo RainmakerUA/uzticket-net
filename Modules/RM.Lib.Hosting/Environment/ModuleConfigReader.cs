@@ -6,7 +6,7 @@ using RM.Lib.Hosting.Contracts.Environment;
 
 namespace RM.Lib.Hosting.Environment
 {
-	public sealed class ModuleConfigReader
+	internal sealed class ModuleConfigReader
 	{
 		private const string _schemaUrn = "urn:rm/module.config";
 

@@ -29,6 +29,7 @@ namespace RM.Lib.Utility
 				_log = log;
 			}
 		}
+		
 		public static void SetDefaultLogFactory(ILogFactory logFactory)
 		{
 			if (logFactory == null)

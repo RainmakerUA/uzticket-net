@@ -27,7 +27,15 @@ namespace RM.UzTicket.Settings
 							"PROXYSCRIPTPATH",
 							"PROXYPATH",
 							"PROXYRE",
+							
 							"TELEBOTKEY",
+							"TELEMASTER",
+							
+							"REDISURL",
+							"REDISPWD",
+							
+							"UZBASEURL",
+							"UZSESSIONCOOKIE"
 			            }.Select(s => $"{_varPrefix}{s}").ToArray();
 		}
 
@@ -59,11 +67,14 @@ namespace RM.UzTicket.Settings
 		
 		public ISettings GetSettings()
 		{
-			return new SettingsData(
+			return new SettingsData()
+					.SetProxySettings(
 								GetVariable("PROXYSRC"), GetVariable("PROXYSCRIPTPATH"),
-								GetVariable("PROXYPATH"), GetVariable("PROXYRE"),
-								GetVariable("TELEBOTKEY")
-							);
+								GetVariable("PROXYPATH"), GetVariable("PROXYRE")
+							)
+					.SetTelegramSettings(GetVariable("TELEBOTKEY"), GetVariable("TELEMASTER"))
+					.SetPersistenceSettings(GetVariable("REDISURL"), GetVariable("REDISPWD"))
+					.SetUzSettings(GetVariable("UZBASEURL"), GetVariable("UZSESSIONCOOKIE"));
 		}
 
 		private string GetVariable(string name)

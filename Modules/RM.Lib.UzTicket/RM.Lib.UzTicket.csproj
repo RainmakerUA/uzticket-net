@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\Contracts\RM.Lib.Common.Contracts\RM.Lib.Common.Contracts.csproj" />
+      <ProjectReference Include="..\..\Contracts\RM.Lib.Hosting.Contracts\RM.Lib.Hosting.Contracts.csproj" />
+      <ProjectReference Include="..\..\Contracts\RM.Lib.Proxy.Contracts\RM.Lib.Proxy.Contracts.csproj" />
+      <ProjectReference Include="..\..\Contracts\RM.Lib.UzTicket.Contracts\RM.Lib.UzTicket.Contracts.csproj" />
+      <ProjectReference Include="..\..\Contracts\RM.UzTicket.Settings.Contracts\RM.UzTicket.Settings.Contracts.csproj" />
+      <ProjectReference Include="..\..\RM.Lib.Utility\RM.Lib.Utility.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    </ItemGroup>
+
+</Project>

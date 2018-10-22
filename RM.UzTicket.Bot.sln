@@ -33,6 +33,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RM.UzTicket.Telegram.Contra
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RM.UzTicket.Telegram", "Modules\RM.UzTicket.Telegram\RM.UzTicket.Telegram.csproj", "{A179345F-2CC2-4693-8DB8-1A83504CDD65}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RM.Lib.UzTicket", "Modules\RM.Lib.UzTicket\RM.Lib.UzTicket.csproj", "{B9466F61-FCE8-43B0-9DC0-DA24E90C4AEA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RM.Lib.UzTicket.Contracts", "Contracts\RM.Lib.UzTicket.Contracts\RM.Lib.UzTicket.Contracts.csproj", "{A4287F0B-FDAB-4BD7-B2BC-A8AECF4867C9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -91,6 +95,14 @@ Global
 		{A179345F-2CC2-4693-8DB8-1A83504CDD65}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A179345F-2CC2-4693-8DB8-1A83504CDD65}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A179345F-2CC2-4693-8DB8-1A83504CDD65}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9466F61-FCE8-43B0-9DC0-DA24E90C4AEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9466F61-FCE8-43B0-9DC0-DA24E90C4AEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9466F61-FCE8-43B0-9DC0-DA24E90C4AEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9466F61-FCE8-43B0-9DC0-DA24E90C4AEA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A4287F0B-FDAB-4BD7-B2BC-A8AECF4867C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A4287F0B-FDAB-4BD7-B2BC-A8AECF4867C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A4287F0B-FDAB-4BD7-B2BC-A8AECF4867C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A4287F0B-FDAB-4BD7-B2BC-A8AECF4867C9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -107,6 +119,8 @@ Global
 		{D18097A6-9B4E-48ED-BD95-94F7175E4F39} = {2B767F6B-CB1D-4EC0-896B-112E67D7A9CC}
 		{FECA305E-E7C1-4285-A86A-13E6D76FDEDC} = {2B767F6B-CB1D-4EC0-896B-112E67D7A9CC}
 		{A179345F-2CC2-4693-8DB8-1A83504CDD65} = {1EF4C9BC-A4C5-4815-A32D-EF45F4A17742}
+		{B9466F61-FCE8-43B0-9DC0-DA24E90C4AEA} = {1EF4C9BC-A4C5-4815-A32D-EF45F4A17742}
+		{A4287F0B-FDAB-4BD7-B2BC-A8AECF4867C9} = {2B767F6B-CB1D-4EC0-896B-112E67D7A9CC}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BC0963AF-3AF6-43F7-83F4-B881E43A8F67}
