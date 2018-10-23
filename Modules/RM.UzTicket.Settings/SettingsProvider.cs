@@ -35,8 +35,10 @@ namespace RM.UzTicket.Settings
 							"REDISPWD",
 							
 							"UZBASEURL",
-							"UZSESSIONCOOKIE"
-			            }.Select(s => $"{_varPrefix}{s}").ToArray();
+							"UZSESSIONCOOKIE",
+							"UZSCANDELAY",
+							"TEMP_SCAN"
+						}.Select(s => $"{_varPrefix}{s}").ToArray();
 		}
 
 		public SettingsProvider()
@@ -74,7 +76,7 @@ namespace RM.UzTicket.Settings
 							)
 					.SetTelegramSettings(GetVariable("TELEBOTKEY"), GetVariable("TELEMASTER"))
 					.SetPersistenceSettings(GetVariable("REDISURL"), GetVariable("REDISPWD"))
-					.SetUzSettings(GetVariable("UZBASEURL"), GetVariable("UZSESSIONCOOKIE"));
+					.SetUzSettings(GetVariable("UZBASEURL"), GetVariable("UZSESSIONCOOKIE"), GetVariable("UZSCANDELAY"), GetVariable("TEMP_SCAN"));
 		}
 
 		private string GetVariable(string name)

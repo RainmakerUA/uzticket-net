@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace RM.UzTicket.Lib.Model
+namespace RM.Lib.UzTicket.Model
 {
 	public class ScanItem
 	{

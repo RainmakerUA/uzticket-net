@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using RM.UzTicket.Lib.Utils;
+using RM.Lib.UzTicket.Utils;
 
-namespace RM.UzTicket.Lib.Model
+namespace RM.Lib.UzTicket.Model
 {
 	[DataContract]
 	public class Coach : IPersistable

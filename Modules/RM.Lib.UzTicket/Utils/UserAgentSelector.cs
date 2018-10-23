@@ -1,6 +1,6 @@
 using System;
 
-namespace RM.UzTicket.Lib.Utils
+namespace RM.Lib.UzTicket.Utils
 {
 	internal static class UserAgentSelector
 	{

@@ -30,7 +30,7 @@ namespace RM.Lib.Proxy
 
 			public override string ToString()
 			{
-				return ToString("https");
+				return ToString("http");
 			}
 
 			public string ToString(string schema)

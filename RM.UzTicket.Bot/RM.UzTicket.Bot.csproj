@@ -21,11 +21,13 @@
     <ProjectReference Include="..\Contracts\RM.Lib.Hosting.Contracts\RM.Lib.Hosting.Contracts.csproj" />
     <ProjectReference Include="..\Contracts\RM.Lib.Proxy.Contracts\RM.Lib.Proxy.Contracts.csproj" />
     <ProjectReference Include="..\Contracts\RM.Lib.StateMachine.Contracts\RM.Lib.StateMachine.Contracts.csproj" />
+    <ProjectReference Include="..\Contracts\RM.Lib.UzTicket.Contracts\RM.Lib.UzTicket.Contracts.csproj" />
     <ProjectReference Include="..\Contracts\RM.UzTicket.Settings.Contracts\RM.UzTicket.Settings.Contracts.csproj" />
     <ProjectReference Include="..\Contracts\RM.UzTicket.Telegram.Contracts\RM.UzTicket.Telegram.Contracts.csproj" />
     <ProjectReference Include="..\Modules\RM.Lib.Hosting\RM.Lib.Hosting.csproj" />
     <ProjectReference Include="..\Modules\RM.Lib.Proxy\RM.Lib.Proxy.csproj" />
     <ProjectReference Include="..\Modules\RM.Lib.StateMachine\RM.Lib.StateMachine.csproj" />
+    <ProjectReference Include="..\Modules\RM.Lib.UzTicket\RM.Lib.UzTicket.csproj" />
     <ProjectReference Include="..\Modules\RM.UzTicket.Settings\RM.UzTicket.Settings.csproj" />
     <ProjectReference Include="..\Modules\RM.UzTicket.Telegram\RM.UzTicket.Telegram.csproj" />
     <ProjectReference Include="..\RM.Lib.Utility\RM.Lib.Utility.csproj" />

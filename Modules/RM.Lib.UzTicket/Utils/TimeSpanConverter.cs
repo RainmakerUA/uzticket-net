@@ -2,7 +2,7 @@
 using System.Linq;
 using Newtonsoft.Json;
 
-namespace RM.UzTicket.Lib.Utils
+namespace RM.Lib.UzTicket.Utils
 {
 	internal class TimeSpanConverter : JsonConverter<TimeSpan>
 	{

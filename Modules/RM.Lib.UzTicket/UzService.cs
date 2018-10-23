@@ -5,75 +5,56 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
+using RM.Lib.Common.Contracts.Log;
+using RM.Lib.Proxy.Contracts;
+using RM.Lib.Utility;
+using RM.Lib.UzTicket.Model;
+using RM.Lib.UzTicket.Utils;
 using RM.UzTicket.Lib.Exceptions;
-using RM.UzTicket.Lib.Model;
-using RM.UzTicket.Lib.Utils;
 
 namespace RM.Lib.UzTicket
 {
-	internal sealed class UzService //: Test.IUzService
+	internal sealed class UzService : IDisposable
 	{
-		private const string _baseUrl = "https://booking.uz.gov.ua"; // strict without trailing '/'!
-		private const string _sessionIdKey = "_gv_sessid";
-		private const int _requestTimeout = 10;
-		//private const int _tokenMaxAge = 600;
+		private const string _baseUrlDefault = "https://booking.uz.gov.ua/en"; // strict without trailing '/'!
+		private const string _sessionIdKeyDefault = "_gv_sessid";
 		private const string _dataKey = "data";
+		private const int _requestTimeout = 10;
 
-		private readonly AutoResetEvent _tokenLock;
+		private readonly string _baseUrl;
+		private readonly string _sessionIdKey;
+		private readonly IProxyProvider _proxyProvider;
+		private readonly ILog _logger;
+
 		private HttpClientHandler _httpHandler;
 		private HttpClient _httpClient;
 
-		//private string _token;
-		//private int _tokenTime;
 		private string _userAgent;
 		private bool _isDisposed;
 
-		public UzService()
+		public UzService(string baseUrl = null, string sessionIdKey = null, IProxyProvider proxyProvider = null, ILog logger = null)
 		{
-			_tokenLock = new AutoResetEvent(true);
-			InitializeHttpClient();
-		}
-
-		#region Disposable
-
-		~UzService()
-		{
-			Dispose(false);
-		}
-
-		private void Dispose(bool isDisposing)
-		{
-			if (!_isDisposed)
-			{
-				if (isDisposing)
-				{
-					// Free managed resources
-					_httpClient.Dispose();
-					_httpClient = null;
-
-					_httpHandler.Dispose();
-					_httpHandler = null;
-
-					_tokenLock.Dispose();
-				}
-
-				// Free unmanaged resources
-				// ...
-
-				_isDisposed = true;
-			}
+			_baseUrl = baseUrl.OrDefault(_baseUrlDefault);
+			_sessionIdKey = sessionIdKey.OrDefault(_sessionIdKeyDefault);
+			//_proxyProvider = proxyProvider;
+			_logger = logger;
 		}
 
 		public void Dispose()
 		{
-			GC.SuppressFinalize(this);
-			Dispose(true);
-		}
+			if (!_isDisposed)
+			{
+				_httpClient.Dispose();
+				_httpClient = null;
 
-		#endregion
+				_httpHandler.Dispose();
+				_httpHandler = null;
+
+				_isDisposed = true;
+			}
+		}
 
 		public string GetSessionId()
 		{
@@ -116,7 +97,7 @@ namespace RM.Lib.UzTicket
 			try
 			{
 				var trains = await ListTrainsAsync(date, source, destination);
-				return trains.FirstOrDefault(tr => tr.Number == trainNumber);
+				return trains.GetByNumber(trainNumber);
 			}
 			catch (ResponseException)
 			{
@@ -222,22 +203,30 @@ namespace RM.Lib.UzTicket
 			return result["routes"].Deserialize<Route[]>();
 		}
 
-		private async Task<IDictionary<string, string>> GetDefaultHeadersAsync()
+		private IDictionary<string, string> GetDefaultHeaders()
 		{
 			return new Dictionary<string, string>
 						{
-							["User-Agent"] = await Task.FromResult(_userAgent),
-							/*["GV-Ajax"] = "1",
-							["GV-Referer"] = referer,
-							["GV-Token"] = await GetTokenAsync()*/
+							["User-Agent"] = _userAgent
 						};
 		}
 
 		private async Task<string> GetString(string path, HttpMethod method, IDictionary<string, string> headers,
-											IDictionary<string, string> data)
+												IDictionary<string, string> data)
 		{
 			var url = GetUrl(path);
 			var req = new HttpRequestMessage(method ?? HttpMethod.Post, url);
+
+			if (_userAgent == null)
+			{
+				//using (var locker = AsyncLock.Lock(_userAgent, 1000))
+				//{
+					//if (locker.IsCaptured && _userAgent == null)
+					//{
+						await InitializeHttpClient();
+					//}
+				//}
+			}
 
 			if (data != null && data.Count > 0)
 			{
@@ -246,14 +235,14 @@ namespace RM.Lib.UzTicket
 
 			if (headers == null)
 			{
-				headers = await GetDefaultHeadersAsync();
+				headers = GetDefaultHeaders();
 			}
 
 			SetHeaders(req.Headers, headers);
 
-			Logger.Debug($"Fetching: {url}");
-			Logger.Debug($"Headers: {String.Join("\n", headers.Select(kv => $"{kv.Key}: {kv.Value}"))}");
-			Logger.Debug($"Cookies: {String.Join("\n", _httpHandler.CookieContainer.GetCookies(new Uri(_baseUrl)).Cast<Cookie>().Select(c => c.ToString()))}");
+			_logger?.Debug($"Fetching: {url}");
+			_logger?.Debug($"Headers: {String.Join("\n", headers.Select(kv => $"{kv.Key}: {kv.Value}"))}");
+			_logger?.Debug($"Cookies: {String.Join("\n", _httpHandler.CookieContainer.GetCookies(new Uri(_baseUrl)).Cast<Cookie>().Select(c => c.ToString()))}");
 
 			var resp = await _httpClient.SendAsync(req);
 
@@ -309,7 +298,7 @@ namespace RM.Lib.UzTicket
 			return jObj != null && jObj.ContainsKey(_dataKey) ? json[_dataKey] : json;
 		}
 
-		private void InitializeHttpClient()
+		private async Task InitializeHttpClient()
 		{
 			_userAgent = UserAgentSelector.GetRandomAgent();
 			_httpHandler = new HttpClientHandler();
@@ -318,6 +307,12 @@ namespace RM.Lib.UzTicket
 									BaseAddress = new Uri(_baseUrl),
 									Timeout = TimeSpan.FromSeconds(_requestTimeout)
 								};
+
+			if (_proxyProvider != null)
+			{
+				var proxyUrl = await _proxyProvider.GetProxyAsync();
+				_httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
+			}
 		}
 
 		/*
@@ -356,7 +351,7 @@ namespace RM.Lib.UzTicket
 
 		*/
 
-		private static string GetUrl(string relPath)
+		private string GetUrl(string relPath)
 		{
 			return $"{_baseUrl}/{relPath}";
 		}

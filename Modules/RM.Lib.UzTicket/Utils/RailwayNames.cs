@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace RM.UzTicket.Lib.Utils
+namespace RM.Lib.UzTicket.Utils
 {
     public static class RailwayNames
     {

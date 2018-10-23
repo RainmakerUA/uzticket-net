@@ -1,30 +1,31 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using RM.Lib.UzTicket;
+using RM.Lib.Common.Contracts.Log;
+using RM.Lib.Proxy.Contracts;
+using RM.Lib.Utility;
+using RM.Lib.UzTicket.Model;
 using RM.UzTicket.Lib.Exceptions;
-using RM.UzTicket.Lib.Model;
-using RM.UzTicket.Lib.Utils;
+using RM.UzTicket.Settings.Contracts;
 
-namespace RM.UzTicket.Lib
+namespace RM.Lib.UzTicket
 {
 	internal sealed class UzScanner : IDisposable
 	{
 		private class ScanData
 		{
 			private const int _lockTimeout = 100;
-			private readonly AutoResetEvent _lock;
+			private readonly object _lock;
 
 			public ScanData(ScanItem item)
 			{
 				Item = item;
 				Attempts = 0;
 
-				_lock = new AutoResetEvent(true);
+				_lock = new object();
 			}
 
 			public ScanItem Item { get; }
@@ -35,7 +36,7 @@ namespace RM.UzTicket.Lib
 
 			public AsyncLock GetLock()
 			{
-				return new AsyncLock(_lock, _lockTimeout);
+				return AsyncLock.Lock(_lock, _lockTimeout);
 			}
 
 			public void IncAttempts()
@@ -49,60 +50,44 @@ namespace RM.UzTicket.Lib
 			}
 		}
 
-		private const int _defaultDelay = 60;
+		private const int _initialDelay = 1 * 60;
+		private const int _defaultDelay = 10 * 60;
 
-		private readonly Func<string, string, Task> _successCallbackAsync;
+		private readonly IUzSettings _settings;
+		private readonly IProxyProvider _proxyProvider;
+		private readonly ILog _log;
 		private readonly int _delay;
 		private readonly IDictionary<string, ScanData> _scanStates;
-		private readonly Func<Test.IUzService> _serviceCreator;
 		private readonly CancellationTokenSource _cancelTokenSource;
 		
 		private volatile bool _isRunning;
 		private bool _isDisposed;
 
-		public UzScanner(Func<string, string, Task> successCallbackAsync, int secondsDelay = _defaultDelay, Func<Test.IUzService> serviceCreator = null)
+		public UzScanner(IUzSettings settings, IProxyProvider proxyProvider, ILog log)
 		{
-			_successCallbackAsync = successCallbackAsync;
-			_delay = secondsDelay;
+			_settings = settings;
+			_proxyProvider = proxyProvider;
+			_log = log;
+
+			_delay = _settings.ScanDelay * 60 ?? _defaultDelay;
 
 			_scanStates = new ConcurrentDictionary<string, ScanData>();
-			_serviceCreator = serviceCreator;
 			_cancelTokenSource = new CancellationTokenSource();
 		}
 
-		#region Disposable
+		public event EventHandler<ScanEventArgs> ScanEvent;
 		
-		~UzScanner()
-		{
-			Dispose(false);
-		}
-
-		private void Dispose(bool isDisposing)
+		public void Dispose()
 		{
 			if (!_isDisposed)
 			{
-				if (isDisposing)
-				{
-					// Free managed resources
-					Reset();
-
-					_cancelTokenSource.Dispose();
-				}
-
-				// Free unmanagement resources
-				// ...
+				Reset();
+				_cancelTokenSource.Dispose();
+				
 
 				_isDisposed = true;
 			}
 		}
-
-		public void Dispose()
-		{
-			GC.SuppressFinalize(this);
-			Dispose(true);
-		}
-
-		#endregion
 
 		public string AddItem(ScanItem item)
 		{
@@ -110,10 +95,10 @@ namespace RM.UzTicket.Lib
 
 			_scanStates.Add(scanId, new ScanData(item));
 
-			if (!_isRunning)
-			{
-				Start();
-			}
+			//if (!_isRunning)
+			//{
+			//	Start();
+			//}
 
 			return scanId;
 		}
@@ -150,24 +135,22 @@ namespace RM.UzTicket.Lib
 			_scanStates.Clear();
 		}
 
-		private Test.IUzService CreateService()
-		{
-			return _serviceCreator?.Invoke() ?? new UzService();
-		}
-
-		private void Start()
+		public void Start()
 		{
 			Task.Run(Run, _cancelTokenSource.Token);
 		}
 
-		private void Stop()
+		public void Stop()
 		{
 			_isRunning = false;
 		}
 
-		private async Task Run()
+		private /*async Task*/void Run()
 		{
 			//logInfo("Starting UzScanner");
+
+			Thread.Sleep(TimeSpan.FromSeconds(_initialDelay));
+			//await Task.Delay(TimeSpan.FromSeconds(_initialDelay));
 
 			_isRunning = true;
 			//TODO: stats?
@@ -176,14 +159,21 @@ namespace RM.UzTicket.Lib
 			{
 				foreach (var statePair in _scanStates)
 				{
-					await ScanAsync(statePair.Key, statePair.Value);
+					//await ScanAsync(statePair.Key, statePair.Value);
+					ScanAsync(statePair.Key, statePair.Value).GetAwaiter().GetResult();
 				}
 
-				await Task.Delay(TimeSpan.FromSeconds(_delay));
+				Thread.Sleep(TimeSpan.FromSeconds(_delay));
+				//await Task.Delay(TimeSpan.FromSeconds(_delay));
 			}
 		}
 
-		private void HandleError(string scanId, ScanData data, string error)
+		private UzService CreateService()
+		{
+			return new UzService(_settings.BaseUrl, _settings.SessionCookie, _proxyProvider, _log);
+		}
+
+		private void HandleError(string scanId, ScanData data, string error, bool fatal)
 		{
 			// TODO: Logging
 			data.SetError(error);
@@ -212,7 +202,7 @@ namespace RM.UzTicket.Lib
 
 								if (coachType == null)
 								{
-									HandleError(scanId, data, $"Coach type {item.CoachType} not found");
+									HandleError(scanId, data, $"Coach type {item.CoachType} not found", true);
 									return;
 								}
 
@@ -227,17 +217,17 @@ namespace RM.UzTicket.Lib
 
 							if (!String.IsNullOrEmpty(sessionId))
 							{
-								await _successCallbackAsync(item.CallbackId, sessionId);
+								ScanEvent?.Invoke(this, new ScanEventArgs(item.CallbackId, sessionId));
 								Abort(scanId);
 							}
 							else
 							{
-								HandleError(scanId, data, "No vacant seats");
+								HandleError(scanId, data, "No vacant seats", false);
 							}
 						}
 						else
 						{
-							HandleError(scanId, data, $"Train {item.TrainNumber} not found");
+							HandleError(scanId, data, $"Train {item.TrainNumber} not found", true);
 						}
 					}
 				}
@@ -252,7 +242,7 @@ namespace RM.UzTicket.Lib
 				{
 					var coaches = await svc.ListCoachesAsync(train, coachType);
 
-					// TODO: Smart coach and seat selection algorythm
+					// TODO: Smart coach and seat selection algorithm
 					foreach (var coach in coaches.OrderByDescending(c => c.PlacesCount))
 					{
 						var allSeats = await svc.ListSeatsAsync(train, coach);

@@ -1,6 +1,6 @@
 ﻿using System.Runtime.Serialization;
 
-namespace RM.UzTicket.Lib.Model
+namespace RM.Lib.UzTicket.Model
 {
 	[DataContract]
 	public class Station

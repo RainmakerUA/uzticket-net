@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace RM.UzTicket.Lib.Model
+namespace RM.Lib.UzTicket.Model
 {
 	public class Seat : IPersistable
 	{

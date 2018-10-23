@@ -4,8 +4,10 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
+using RM.Lib.Common.Contracts.Log;
+using RM.Lib.Utility;
 
-namespace RM.UzTicket.Lib.Model
+namespace RM.Lib.UzTicket.Model
 {
 	internal static class ModelExtensions
 	{
@@ -20,8 +22,10 @@ namespace RM.UzTicket.Lib.Model
 																ContractResolver = new CamelCasePropertyNamesContractResolver(),
 																TraceWriter = _tracer
 															});
-			_serializer.Error += (sender, args) => Utils.Logger.Debug("Deserialization error: " + args.ToString());
+			_serializer.Error += (sender, args) => Logger.Debug("Deserialization error: " + args.ToString());
 		}
+
+		private static ILog Logger => LogFactory.GetLog();
 
 		public static T Deserialize<T>(this JToken jToken)
 		{
@@ -53,19 +57,15 @@ namespace RM.UzTicket.Lib.Model
 
 		public static IEnumerable<Seat> GetSeats(this Coach coach, IReadOnlyDictionary<string, int[]> seatNumbers)
 		{
-			foreach (var charline in seatNumbers.Keys)
-			{
-				foreach (var seatNum in seatNumbers[charline])
-				{
-					yield return new Seat
-									{
-										CharLine = charline,
-										Number = seatNum,
-										Price = coach.Prices.TryGetValue(charline, out var price) ? price : new decimal?()
-									};
-
-				}
-			}
+			return seatNumbers.Keys.SelectMany(
+											charline => seatNumbers[charline],
+											(charline, seatNum) => new Seat
+																	{
+																		CharLine = charline,
+																		Number = seatNum,
+																		Price = coach.Prices.TryGetValue(charline, out var price) ? price : new decimal?()
+																	}
+										);
 		}
 
 		public static IEnumerable<string> GetTraces()

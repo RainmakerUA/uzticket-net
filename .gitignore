@@ -7,7 +7,7 @@ TestResults/
 # Rider folders
 .idea/
 # Files
-.env
+#.env
 *~
 *.bak
 

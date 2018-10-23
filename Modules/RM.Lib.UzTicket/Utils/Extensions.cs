@@ -1,9 +1,14 @@
 ﻿using System;
 
-namespace RM.UzTicket.Lib.Utils
+namespace RM.Lib.UzTicket.Utils
 {
 	public static class Extensions
 	{
+		public static string OrDefault(this string str, string defaultStr = null)
+		{
+			return String.IsNullOrEmpty(str) ? defaultStr : str;
+		}
+
 		public static string ToSortableDateString(this DateTime dateTime)
 		{
 			return dateTime.ToString("yyyy-MM-dd");

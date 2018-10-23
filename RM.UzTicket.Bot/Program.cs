@@ -56,6 +56,9 @@ namespace RM.UzTicket.Bot
 
 				var resolver = host.Environment.Resolver;
 				var telebot = resolver.Get<ITelegramBot>();
+
+				telebot.Error += (o, e) => { };
+
 				//var provider = resolver.Get<ISettingsProvider>();
 				//var settings = provider.GetSettings();
 				//_proxyProvider = resolver.Get<IProxyProvider>();
@@ -88,8 +91,6 @@ namespace RM.UzTicket.Bot
 				//RunBot(bot, locker);
 				host.Start();
 				
-				telebot.SendMasterMessage("Application started");
-				
 				/*
 				string inp;
 
@@ -101,7 +102,6 @@ namespace RM.UzTicket.Bot
 */
 				locker.WaitOne();
 
-				telebot.SendMasterMessage("Application stopping");
 				Console.WriteLine("Got shutdown signal. Stopping application...");
 				Console.CancelKeyPress -= closure.CancelKeyPressHandler;
 
