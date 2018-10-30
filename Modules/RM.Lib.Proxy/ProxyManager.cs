@@ -30,7 +30,7 @@ namespace RM.Lib.Proxy
 
 			public override string ToString()
 			{
-				return ToString("https");
+				return ToString("http");
 			}
 
 			public string ToString(string schema)
@@ -42,17 +42,17 @@ namespace RM.Lib.Proxy
 		private const int _maxProxies = 50;
 
 		private static readonly IDictionary<string, string> _proxyRequestData = new Dictionary<string, string>
-																				{
-																					["xpp"] = "1",
-																					["xf1"] = "1",
-																					["xf2"] = "1",
-																					["xf4"] = "0",
-																					["xf5"] = "1"
-																				};
+																					{
+																						["xpp"] = "1",
+																						["xf1"] = "1",
+																						["xf2"] = "1",
+																						["xf4"] = "0",
+																						["xf5"] = "1"
+																					};
 
 		private readonly ISettingsProvider _settingsProvider;
 		private readonly List<Proxy> _proxies = new List<Proxy>(_maxProxies);
-		private ISettings _settings;
+		private IProxySettings _settings;
 		private int _currentIndex;
 
 		public ProxyProvider(ISettingsProvider provider)
@@ -85,10 +85,10 @@ namespace RM.Lib.Proxy
 			{
 				_proxies.Clear();
 
-				_settings = _settingsProvider.GetSettings();
+				_settings = _settingsProvider.GetSettings().Proxy;
 
 				var client = new HttpClient();
-				var req = new HttpRequestMessage(HttpMethod.Post, _settings.ProxySource) { Content = new FormUrlEncodedContent(_proxyRequestData) };
+				var req = new HttpRequestMessage(HttpMethod.Post, _settings.SourceUrl) { Content = new FormUrlEncodedContent(_proxyRequestData) };
 
 				var resp = await client.SendAsync(req);
 
@@ -97,7 +97,7 @@ namespace RM.Lib.Proxy
 					var htmlDoc = new HtmlDocument();
 					htmlDoc.Load(await resp.Content.ReadAsStreamAsync());
 
-					var scriptNode = htmlDoc.DocumentNode.SelectSingleNode(_settings.ProxyScriptPath);
+					var scriptNode = htmlDoc.DocumentNode.SelectSingleNode(_settings.ScriptPath);
 					var unpacked = ScriptUnpacker.Unpack(scriptNode.InnerText);
 					var calc = new Calculator(unpacked);
 
@@ -107,7 +107,7 @@ namespace RM.Lib.Proxy
 			}
 		}
 
-		private static Proxy ParseProxy(string nodeText, Calculator calc, ISettings settings)
+		private static Proxy ParseProxy(string nodeText, Calculator calc, IProxySettings settings)
 		{
 			var re = new Regex(settings.ProxyRegex, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 			var match = re.Match(nodeText);

@@ -52,8 +52,8 @@ namespace RM.Lib.Hosting
 
 		private void InitializeCoreType(IHostEnvironment environment)
 		{
-			//TODO:?<dependency to="Matrix42.Common.ILog, Matrix42.Common" lifetime="Single" construction="Factory" constructionFactory="Matrix42.Common.LogFactory, Matrix42.Common" constructionMethod="GetLogger" />
-			environment.Container.RegisterSingletonType<ILog>(type => LogFactory.GetLog());
+			environment.Container.RegisterSingletonType(type => LogFactory.GetLog());
+			//TODO: LogFactory?
 		}
 
 		private void InitializeModules(IHostEnvironment environment, IEnumerable<ConfigModule> modules)

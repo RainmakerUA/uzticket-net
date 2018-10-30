@@ -1,10 +1,13 @@
 ﻿using System;
+using System.IO;
 using System.Linq.Expressions;
 
 namespace RM.Lib.StateMachine.Contracts
 {
 	public interface IStateMachineBuilder<TState, TImpl, TInput> where TState : struct, Enum where TImpl : class
 	{
+		IStateMachineBuilder<TState, TImpl, TInput> SetBasicInfo(string name = null, string implementingType = null, TState? initialState = null);
+
 		IStateMachineBuilder<TState, TImpl, TInput> AddState(TState stateValue, Expression<Action<TImpl, TState, TInput>> onEnter, Expression<Action<TImpl, TState, TInput>> onTransitionError, Expression<Action<TImpl, TState, TInput>> onLeave);
 
 		IStateMachineBuilder<TState, TImpl, TInput> AddStates((TState stateValue, Expression<Action<TImpl, TState, TInput>> onEnter, Expression<Action<TImpl, TState, TInput>> onTransitionError, Expression<Action<TImpl, TState, TInput>> onLeave)[] states);
@@ -14,5 +17,7 @@ namespace RM.Lib.StateMachine.Contracts
 		IStateMachineBuilder<TState, TImpl, TInput> AddTransitions((TState fromState, TState toState, Expression<Func<TImpl, TState, TState, TInput, bool>> condition)[] transitions);
 
 		IStateMachine<TState, TImpl, TInput> Build(TImpl implementation);
+
+		IStateMachine<TState, TImpl, TInput> BuildFromXml(Stream xmlStream, TImpl implementation);
 	}
 }

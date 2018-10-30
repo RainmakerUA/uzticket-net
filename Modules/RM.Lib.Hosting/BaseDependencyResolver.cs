@@ -8,7 +8,7 @@ namespace RM.Lib.Hosting
 	public class BaseDependencyResolver : IDependencyResolver
 	{
 		private readonly IServiceScope _scope;
-		private IList<Action<IDependencyResolver>> _moduleInitializers;
+		private readonly IList<Action<IDependencyResolver>> _moduleInitializers;
 		protected IServiceProvider Provider;
 
 		private BaseDependencyResolver(IServiceScope scope) : this(scope?.ServiceProvider)
@@ -44,11 +44,6 @@ namespace RM.Lib.Hosting
 		public T Get<T>() => Provider.GetRequiredService<T>();
 
 		public IEnumerable<T> GetAll<T>() => Provider.GetServices<T>();
-
-		//public bool IsRegistered<T>()
-		//{
-		//	return _provider.
-		//}
 
 		public object Activate(Type type)
 		{
@@ -120,6 +115,8 @@ namespace RM.Lib.Hosting
 				{
 					initializer?.Invoke(this);
 				}
+				// Parallel version
+				// Task.WaitAll(_moduleInitializers.Select(init => Task.Run(() => init?.Invoke(this))).ToArray());
 			}
 		}
 	}

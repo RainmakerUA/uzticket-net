@@ -4,10 +4,11 @@ obj/
 bin/
 packages/
 TestResults/
+.build/
 # Rider folders
 .idea/
 # Files
-.env
+#.env
 *~
 *.bak
 

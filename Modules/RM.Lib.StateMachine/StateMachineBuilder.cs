@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq.Expressions;
 using RM.Lib.StateMachine.Contracts;
 
@@ -11,6 +12,11 @@ namespace RM.Lib.StateMachine
 		public StateMachineBuilder()
 		{
 			_builder = Machine<TState, TImpl, TInput>.GetBuilder();
+		}
+
+		public IStateMachineBuilder<TState, TImpl, TInput> SetBasicInfo(string name = null, string implementingType = null, TState? initialState = null)
+		{
+			return _builder.SetBasicInfo(name, implementingType, initialState);
 		}
 
 		public IStateMachineBuilder<TState, TImpl, TInput> AddState(TState stateValue, Expression<Action<TImpl, TState, TInput>> onEnter, Expression<Action<TImpl, TState, TInput>> onTransitionError, Expression<Action<TImpl, TState, TInput>> onLeave)
@@ -36,6 +42,11 @@ namespace RM.Lib.StateMachine
 		public IStateMachine<TState, TImpl, TInput> Build(TImpl implementation)
 		{
 			return _builder.Build(implementation);
+		}
+
+		public IStateMachine<TState, TImpl, TInput> BuildFromXml(Stream xmlStream, TImpl implementation)
+		{
+			return _builder.BuildFromXml(xmlStream, implementation);
 		}
 	}
 }

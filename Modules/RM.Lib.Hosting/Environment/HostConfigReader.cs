@@ -8,7 +8,7 @@ using RM.Lib.Hosting.Contracts.Environment;
 
 namespace RM.Lib.Hosting.Environment
 {
-	public sealed class HostConfigReader
+	internal sealed class HostConfigReader
 	{
 		private const string _schemaUrn = "urn:rm/host.config";
 		private const string _resNotFoundFormat = "Resource host.config not found in assembly {0}.";
@@ -90,7 +90,7 @@ namespace RM.Lib.Hosting.Environment
 			LoadConfig(configFileStream);
 		}
 
-		private Stream GetConfigResourceStream(Assembly assembly)
+		private static Stream GetConfigResourceStream(Assembly assembly)
 		{
 			var assemblyName = assembly.GetName().Name;
 			return assembly.GetManifestResourceStream($"{assemblyName}.Properties.host.config");
