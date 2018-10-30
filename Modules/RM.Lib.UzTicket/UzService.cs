@@ -10,6 +10,7 @@ using Newtonsoft.Json.Linq;
 using RM.Lib.Common.Contracts.Log;
 using RM.Lib.Proxy.Contracts;
 using RM.Lib.Utility;
+using RM.Lib.UzTicket.Contracts.DataContracts;
 using RM.Lib.UzTicket.Model;
 using RM.Lib.UzTicket.Utils;
 using RM.UzTicket.Lib.Exceptions;
@@ -18,7 +19,7 @@ namespace RM.Lib.UzTicket
 {
 	internal sealed class UzService : IDisposable
 	{
-		private const string _baseUrlDefault = "https://booking.uz.gov.ua/en"; // strict without trailing '/'!
+		private const string _baseUrlDefault = "https://booking.uz.gov.ua/ru"; // strict without trailing '/'!
 		private const string _sessionIdKeyDefault = "_gv_sessid";
 		private const string _dataKey = "data";
 		private const int _requestTimeout = 10;
@@ -27,10 +28,10 @@ namespace RM.Lib.UzTicket
 		private readonly string _sessionIdKey;
 		private readonly IProxyProvider _proxyProvider;
 		private readonly ILog _logger;
+		private readonly object _httpInitLock;
 
 		private HttpClientHandler _httpHandler;
 		private HttpClient _httpClient;
-
 		private string _userAgent;
 		private bool _isDisposed;
 
@@ -38,8 +39,10 @@ namespace RM.Lib.UzTicket
 		{
 			_baseUrl = baseUrl.OrDefault(_baseUrlDefault);
 			_sessionIdKey = sessionIdKey.OrDefault(_sessionIdKeyDefault);
-			//_proxyProvider = proxyProvider;
+			_proxyProvider = proxyProvider;
 			_logger = logger;
+
+			_httpInitLock = new object();
 		}
 
 		public void Dispose()
@@ -214,18 +217,18 @@ namespace RM.Lib.UzTicket
 		private async Task<string> GetString(string path, HttpMethod method, IDictionary<string, string> headers,
 												IDictionary<string, string> data)
 		{
-			var url = GetUrl(path);
+			var url = path;
 			var req = new HttpRequestMessage(method ?? HttpMethod.Post, url);
 
 			if (_userAgent == null)
 			{
-				//using (var locker = AsyncLock.Lock(_userAgent, 1000))
-				//{
-					//if (locker.IsCaptured && _userAgent == null)
-					//{
+				using (var httpLock = AsyncLock.Lock(_httpInitLock, 1000))
+				{
+					if (httpLock.IsCaptured && _userAgent == null)
+					{
 						await InitializeHttpClient();
-					//}
-				//}
+					}
+				}
 			}
 
 			if (data != null && data.Count > 0)
@@ -283,9 +286,20 @@ namespace RM.Lib.UzTicket
 				var value = jObj[_dataKey];
 
 
-				if (value is JObject valueObj && valueObj.TryGetValue("errors", out var errorsArray))
+				if (value is JObject valueObj)
 				{
-					message = errorsArray is IEnumerable<JToken> errors ? String.Join(" | ", errors.Select(jv => (string)jv)) : null;
+					if (valueObj.TryGetValue("errors", out var errorsArray))
+					{
+						message = errorsArray is IEnumerable<JToken> errors ? String.Join(" | ", errors.Select(jv => (string)jv)) : null;
+					}
+					else if (valueObj.TryGetValue("error", out var errorValue))
+					{
+						message = errorValue.ToString();
+					}
+					else
+					{
+						message = valueObj.ToString();
+					}
 				}
 				else
 				{
@@ -312,48 +326,8 @@ namespace RM.Lib.UzTicket
 			{
 				var proxyUrl = await _proxyProvider.GetProxyAsync();
 				_httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
+				_logger.Info("UzService uses proxy " + proxyUrl);
 			}
-		}
-
-		/*
-
-		private async Task<string> GetTokenAsync()
-		{
-			if (IsTokenOutdated())
-			{
-				using (new AsyncLock(_tokenLock))
-				{
-					if (IsTokenOutdated())
-					{
-						InitializeHttpClient();
-
-						var resp = await GetString("", null, new Dictionary<string, string> { ["User-Agent"] = _userAgent }, null);
-						_token = TokenParser.ParseGvToken(resp);
-
-						if (String.IsNullOrEmpty(_token))
-						{
-							throw new TokenException(resp);
-						}
-
-						_tokenTime = DateTimeExtensions.GetUnixTime();
-					}
-				}
-			}
-
-			return _token;
-		}
-
-		private bool IsTokenOutdated()
-		{
-			var unixNow = DateTimeExtensions.GetUnixTime();
-			return unixNow - _tokenTime > _tokenMaxAge;
-		}
-
-		*/
-
-		private string GetUrl(string relPath)
-		{
-			return $"{_baseUrl}/{relPath}";
 		}
 
 		private static void SetHeaders(HttpRequestHeaders headers, IDictionary<string, string> dict)
@@ -366,7 +340,6 @@ namespace RM.Lib.UzTicket
 
 		private static IReadOnlyDictionary<string, int[]> ParseSeats(JToken jToken)
 		{
-			//return values?.ToDictionary(kv => kv.Key, kv => (kv.Value as IEnumerable<JsonValue>)?.Select(jv => jv.ReadAs<int>()).ToArray());
 			return new ReadOnlyDictionary<string, int[]>(jToken.Deserialize<IDictionary<string, int[]>>());
 		}
 	}

@@ -1,6 +1,6 @@
 ﻿using System.Runtime.Serialization;
 
-namespace RM.Lib.UzTicket.Model
+namespace RM.Lib.UzTicket.Contracts.DataContracts
 {
 	[DataContract]
 	public class Station
@@ -17,11 +17,6 @@ namespace RM.Lib.UzTicket.Model
 		public override string ToString()
 		{
 			return $"{Title} ({ID})";
-		}
-
-		internal static Station Create(int id, string title, string region = null)
-		{
-			return new Station { ID = id, Title = title, Region = region };
 		}
 	}
 }

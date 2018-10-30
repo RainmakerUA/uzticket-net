@@ -11,7 +11,6 @@
       <ProjectReference Include="..\..\Contracts\RM.Lib.Proxy.Contracts\RM.Lib.Proxy.Contracts.csproj" />
       <ProjectReference Include="..\..\Contracts\RM.Lib.UzTicket.Contracts\RM.Lib.UzTicket.Contracts.csproj" />
       <ProjectReference Include="..\..\Contracts\RM.UzTicket.Settings.Contracts\RM.UzTicket.Settings.Contracts.csproj" />
-      <ProjectReference Include="..\..\Contracts\RM.UzTicket.Telegram.Contracts\RM.UzTicket.Telegram.Contracts.csproj" />
       <ProjectReference Include="..\..\RM.Lib.Utility\RM.Lib.Utility.csproj" />
     </ItemGroup>
 

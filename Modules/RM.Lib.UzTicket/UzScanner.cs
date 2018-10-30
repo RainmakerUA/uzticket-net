@@ -2,12 +2,14 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using RM.Lib.Common.Contracts.Log;
-using RM.Lib.Proxy.Contracts;
 using RM.Lib.Utility;
+using RM.Lib.UzTicket.Contracts.DataContracts;
 using RM.Lib.UzTicket.Model;
+using RM.Lib.UzTicket.Utils;
 using RM.UzTicket.Lib.Exceptions;
 using RM.UzTicket.Settings.Contracts;
 
@@ -15,64 +17,62 @@ namespace RM.Lib.UzTicket
 {
 	internal sealed class UzScanner : IDisposable
 	{
+		[DataContract]
 		private class ScanData
 		{
 			private const int _lockTimeout = 100;
 			private readonly object _lock;
 
-			public ScanData(ScanItem item)
+			public ScanData()
 			{
-				Item = item;
-				Attempts = 0;
-
 				_lock = new object();
 			}
 
-			public ScanItem Item { get; }
+			public ScanData(ScanItem item) : this()
+			{
+				Item = item;
+			}
 
-			public int Attempts { get; private set; }
+			[DataMember]
+			public ScanItem Item { get; set; }
 
-			public string Error { get; private set; }
+			[DataMember]
+			public int Attempts { get; set; }
+
+			[DataMember]
+			public int Errors { get; set; }
+
+			[DataMember]
+			public string LastError { get; set; }
 
 			public AsyncLock GetLock()
 			{
 				return AsyncLock.Lock(_lock, _lockTimeout);
 			}
-
-			public void IncAttempts()
-			{
-				Attempts++;
-			}
-
-			public void SetError(string error)
-			{
-				Error = error;
-			}
 		}
 
-		private const int _initialDelay = 1 * 60;
+		private const int _errorsToFail = 5; // TODO: Settings
+		private const int _initialDelay = 10;
 		private const int _defaultDelay = 10 * 60;
 
 		private readonly IUzSettings _settings;
-		private readonly IProxyProvider _proxyProvider;
 		private readonly ILog _log;
+		private readonly Func<UzService> _serviceFactory;
 		private readonly int _delay;
 		private readonly IDictionary<string, ScanData> _scanStates;
-		private readonly CancellationTokenSource _cancelTokenSource;
 		
-		private volatile bool _isRunning;
+		private CancellationTokenSource _cancelTokenSource;
+		private CancellationToken _cancelToken;
 		private bool _isDisposed;
 
-		public UzScanner(IUzSettings settings, IProxyProvider proxyProvider, ILog log)
+		public UzScanner(IUzSettings settings, ILog log, Func<UzService> serviceFactory)
 		{
 			_settings = settings;
-			_proxyProvider = proxyProvider;
 			_log = log;
+			_serviceFactory = serviceFactory;
 
 			_delay = _settings.ScanDelay * 60 ?? _defaultDelay;
-
 			_scanStates = new ConcurrentDictionary<string, ScanData>();
-			_cancelTokenSource = new CancellationTokenSource();
 		}
 
 		public event EventHandler<ScanEventArgs> ScanEvent;
@@ -86,6 +86,53 @@ namespace RM.Lib.UzTicket
 				
 
 				_isDisposed = true;
+			}
+		}
+
+		public async Task LoadScans()
+		{
+			var temp = _settings.Temp;
+			var scanLines = temp.Split('#');
+
+			using (var service = CreateService())
+			{
+				foreach (var line in scanLines)
+				{
+					try
+					{
+						_log.Debug($"Adding scan item [{line}]");
+
+						var scanParts = line.Split('|');
+
+						var callback = Int32.TryParse(scanParts[0], out var cbID) ? cbID : new int?();
+						var stFrom = await service.FetchFirstStationAsync(scanParts[1]);
+						var stTo = await service.FetchFirstStationAsync(scanParts[2]);
+						var date = DateTime.ParseExact(scanParts[3], "dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture);
+						var train = scanParts[4];
+						var coach = scanParts[5];
+						var firstName = scanParts[6];
+						var lastName = scanParts[7];
+
+						AddItem(new ScanItem
+									{
+										ScanSource = line,
+										CallbackID = callback,
+										FirstName = firstName,
+										LastName = lastName,
+										Date = date,
+										Source = stFrom,
+										Destination = stTo,
+										TrainNumber = train,
+										CoachType = coach,
+									});
+
+						_log.Debug($"Added scan item [{line}]");
+					}
+					catch (Exception e)
+					{
+						_log.Error("Error adding scan item `{0}`", e, line);
+					}
+				}
 			}
 		}
 
@@ -107,7 +154,7 @@ namespace RM.Lib.UzTicket
 		{
 			if (_scanStates.TryGetValue(scanId, out var data))
 			{
-				return Tuple.Create(data.Attempts, data.Error);
+				return Tuple.Create(data.Attempts, data.LastError);
 			}
 
 			throw new ScanNotFoundException(scanId);
@@ -130,104 +177,168 @@ namespace RM.Lib.UzTicket
 
 		public void Reset()
 		{
-			_isRunning = false;
-			_cancelTokenSource.Cancel();
+			Stop();
 			_scanStates.Clear();
 		}
 
 		public void Start()
 		{
-			Task.Run(Run, _cancelTokenSource.Token);
+			if (_scanStates.Count == 0)
+			{
+				_log.Warning("Scan items are absent. Nothing to start!");
+				return;
+			}
+
+			if (_cancelTokenSource == null)
+			{
+				_log.Debug("Start scanning");
+
+				_cancelTokenSource = new CancellationTokenSource();
+				_cancelToken = _cancelTokenSource.Token;
+				
+				Task.Run(Run, _cancelToken);
+			}
 		}
 
 		public void Stop()
 		{
-			_isRunning = false;
+			if (_cancelTokenSource != null)
+			{
+				_cancelTokenSource.Cancel();
+				_cancelTokenSource = null;
+
+				_log.Debug("Stopped scanning");
+			}
 		}
 
-		private /*async Task*/void Run()
+		private void Run()
 		{
-			//logInfo("Starting UzScanner");
+			_log.Debug("Run()");
 
-			Thread.Sleep(TimeSpan.FromSeconds(_initialDelay));
-			//await Task.Delay(TimeSpan.FromSeconds(_initialDelay));
-
-			_isRunning = true;
+			var isRunning = _cancelToken.WaitedOrCancelled(TimeSpan.FromSeconds(_initialDelay));
+			
 			//TODO: stats?
 
-			while (_isRunning)
+			while (isRunning)
 			{
 				foreach (var statePair in _scanStates)
 				{
-					//await ScanAsync(statePair.Key, statePair.Value);
-					ScanAsync(statePair.Key, statePair.Value).GetAwaiter().GetResult();
+					try
+					{
+						ScanAsync(statePair.Key, statePair.Value).Wait(_cancelToken);
+					}
+					catch (Exception e)
+					{
+						HandleError(statePair.Key, statePair.Value, e.Message, true);
+					}
 				}
 
-				Thread.Sleep(TimeSpan.FromSeconds(_delay));
-				//await Task.Delay(TimeSpan.FromSeconds(_delay));
+				isRunning = _cancelToken.WaitedOrCancelled(TimeSpan.FromSeconds(_delay));
 			}
+
+			_log.Debug("Run() end");
 		}
 
 		private UzService CreateService()
 		{
-			return new UzService(_settings.BaseUrl, _settings.SessionCookie, _proxyProvider, _log);
+			return _serviceFactory?.Invoke() ?? new UzService(logger: _log);
 		}
 
-		private void HandleError(string scanId, ScanData data, string error, bool fatal)
+		private void HandleError(string scanId, ScanData data, string error, bool severe)
 		{
-			// TODO: Logging
-			data.SetError(error);
+			const string itemFailed = "Item is failed: scanning skipped";
+
+			if (severe)
+			{
+				data.Errors++;
+
+				var msg = $"Errors: {data.Errors} in a row on scanning [{data.Item.ScanSource}]: {error}";
+
+				_log.Error(msg);
+				data.LastError = error;
+
+				if (data.Errors >= _errorsToFail)
+				{
+					ScanEvent?.Invoke(this, new ScanEventArgs(data.Item.CallbackID, ScanEventArgs.ScanType.Error, msg + "\n" + itemFailed));
+					_log.Error(itemFailed);
+				}
+			}
+			else
+			{
+				_log.Warning($"Warning for scan [{data.Item.ScanSource}]: {error}");
+			}
 		}
 
 		private async Task ScanAsync(string scanId, ScanData data)
 		{
+			if (data.Errors >= _errorsToFail)
+			{
+				return;
+			}
+
 			using (var lck = data.GetLock())
 			{
 				if (lck.IsCaptured)
 				{
-					data.IncAttempts();
+					data.Attempts++;
 
 					using (var service = CreateService())
 					{
 						var item = data.Item;
-						var train = await service.FetchTrainAsync(item.Date, item.Source, item.Destination, item.TrainNumber);
+						var trains = await service.ListTrainsAsync(item.Date, item.Source, item.Destination);
 
-						if (train != null)
+						if (trains != null && trains.Length > 0)
 						{
-							CoachType[] coachTypes;
+							var train = trains.GetByNumber(item.TrainNumber);
 
-							if (!String.IsNullOrEmpty(item.CoachType))
+							if (train != null)
 							{
-								var coachType = FindCoachType(train, item.CoachType);
-
-								if (coachType == null)
+								if (train.CoachTypes != null && train.CoachTypes.Length > 0)
 								{
-									HandleError(scanId, data, $"Coach type {item.CoachType} not found", true);
-									return;
+									CoachType[] coachTypes = null;
+
+									if (!String.IsNullOrEmpty(item.CoachType))
+									{
+										var coachType = FindCoachType(train, item.CoachType);
+
+										if (coachType != null)
+										{
+											coachTypes = new[] {coachType};
+										}
+										else if (item.ExactCoachType)
+										{
+											HandleError(scanId, data, "No vacant coaches " + item.CoachType, false);
+											return;
+										}
+									}
+
+									if (coachTypes == null)
+									{
+										coachTypes = train.CoachTypes;
+									}
+
+									var sessionId = await BookAsync(train, coachTypes, item.FirstName, item.LastName);
+
+									if (!String.IsNullOrEmpty(sessionId))
+									{
+										var msg = $"Reserved ticket for [{item.ScanSource}]: {sessionId}";
+										_log.Info(msg);
+										ScanEvent?.Invoke(this, new ScanEventArgs(item.CallbackID, ScanEventArgs.ScanType.Success, msg));
+										//Abort(scanId); rebook again in case it is bought by requester
+										return;
+									}
 								}
 
-								coachTypes = new[] { coachType };
-							}
-							else
-							{
-								coachTypes = train.CoachTypes;
-							}
-
-							var sessionId = await BookAsync(train, coachTypes, item.FirstName, item.LastName);
-
-							if (!String.IsNullOrEmpty(sessionId))
-							{
-								ScanEvent?.Invoke(this, new ScanEventArgs(item.CallbackId, sessionId));
-								Abort(scanId);
-							}
-							else
-							{
 								HandleError(scanId, data, "No vacant seats", false);
+							}
+							else
+							{
+								HandleError(scanId, data, $"Train {item.TrainNumber} not found", true);
 							}
 						}
 						else
 						{
-							HandleError(scanId, data, $"Train {item.TrainNumber} not found", true);
+							HandleError(scanId, data, "No tickets selling for date/train", false);
 						}
 					}
 				}

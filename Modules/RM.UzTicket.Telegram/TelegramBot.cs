@@ -29,7 +29,7 @@ namespace RM.UzTicket.Telegram
 		{
 			_settingsProvider = settingsProvider;
 			_proxyProvider = proxyProvider;
-			_log = LogFactory.GetLog();
+			_log = LogFactory.GetLog(GetType());
 
 			_settings = _settingsProvider.GetSettings().Telegram;
 
@@ -37,6 +37,7 @@ namespace RM.UzTicket.Telegram
 
 			_client = new TelegramBotClient(_settings.BotToken);
 			_client.OnMessage += BotOnMessage;
+			_client.OnCallbackQuery += BotCallbackQuery;
 			_client.OnReceiveError += BotReceiveError;
 			_client.OnReceiveGeneralError += BotReceiveGeneralError;
 		}
@@ -45,14 +46,20 @@ namespace RM.UzTicket.Telegram
 
 		public event EventHandler<MessageEventArgs> Message;
 
+		public event EventHandler<ResponseEventArgs> Response;
+
 		public event EventHandler<ErrorEventArgs> Error;
 
-		public async Task SendMasterMessage(string message)
+		public Task SendMessageAsync(long id, string message)
 		{
-			if (_masterChatID.HasValue)
-			{
-				await _client.SendTextMessageAsync(_masterChatID, message, ParseMode.Html);
-			}
+			return id == 0
+						? SendMasterMessageAsync(message)
+						: _client.SendTextMessageAsync(id, message, ParseMode.Html);
+		}
+
+		public Task SendMasterMessageAsync(string message)
+		{
+			return _masterChatID.HasValue ? SendMessageAsync(_masterChatID.Value, message) : Task.CompletedTask;
 		}
 		
 		public static void Initialize(IDependencyResolver resolver)
@@ -80,6 +87,12 @@ namespace RM.UzTicket.Telegram
 				                                                                            new[] { new InlineKeyboardButton { Text = "\U0001F1FA\U0001F1F8 EN", CallbackData = "EN" } }
 
 		                                                                            });
+		private static readonly InlineKeyboardMarkup _testMarkup2 = new InlineKeyboardMarkup(new[] {
+																								new[] { new InlineKeyboardButton { Text = "\u2705 Scan success!", CallbackData = "S-OK" } },
+				                                                                                new[] { new InlineKeyboardButton { Text = "\u2757 Scan warning.", CallbackData = "S-WARN" } },
+				                                                                                new[] { new InlineKeyboardButton { Text = "\u274C Scan error!", CallbackData = "S-ERR" } }
+
+		                                                                                  });
 		/*new ReplyKeyboardMarkup(new []
 																					{
 																						new[] { new KeyboardButton { Text = "\U0001F1FA\U0001F1E6 UA" } },
@@ -130,6 +143,28 @@ namespace RM.UzTicket.Telegram
 			}
 		}
 
+		private void BotCallbackQuery(object sender, CallbackQueryEventArgs e)
+		{
+			var query = e.CallbackQuery;
+			var from = query.From.Id;
+			var message = query.Message;
+			var messageID = message?.MessageId;
+			var data = query.Data;
+
+			_log.Debug("Query Callback from {0}: \"{1}\" for message ID = {2}", query.From.Username, query.Data, messageID?.ToString() ?? "(no mID)");
+
+#if DEBUG
+			if (sender is ITelegramBotClient iBot && from == _masterChatID && message != null)
+			{
+				var rMarkup = data.StartsWith("S-") ? null : _testMarkup2;
+				var sendTask = iBot.EditMessageTextAsync(new ChatId(from), messageID.Value, $"{message.Text}\nAnswer: <i>{data}</i>", ParseMode.Html, replyMarkup: rMarkup);
+				var msg = sendTask.GetAwaiter().GetResult();
+			}
+#endif
+
+			Response?.Invoke(this, new ResponseEventArgs(from, messageID ?? 0, data));
+		}
+
 		private void BotReceiveError(object sender, ReceiveErrorEventArgs e)
 		{
 			HandleError(e.ApiRequestException);
@@ -150,10 +185,12 @@ namespace RM.UzTicket.Telegram
 			{
 				errorHandler.Invoke(this, new ErrorEventArgs(exc));
 			}
+#if !DEBUG
 			else
 			{
 				throw new Exception("Telegram exception", exc);
 			}
+#endif
 		}
 
 		private static Command? ParseCommand(string text, MessageEntity commandEntity)

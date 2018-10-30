@@ -4,6 +4,7 @@ obj/
 bin/
 packages/
 TestResults/
+.build/
 # Rider folders
 .idea/
 # Files

@@ -12,7 +12,7 @@ namespace RM.Lib.UzTicket.Model
 
 		public bool Bedding { get; set; }
 
-		public DateTime ChildBirthDate { get; set; }
+		public DateTime? ChildBirthDate { get; set; }
 
 		public string StudentID { get; set; }
 
@@ -26,7 +26,7 @@ namespace RM.Lib.UzTicket.Model
 		    src["firstname"] = FirstName;
 		    src["lastname"] = LastName;
 		    src["bedding"] = Bedding ? "1" : "0";
-		    src["child"] = ChildBirthDate.ToSortableDateString();
+		    src["child"] = ChildBirthDate?.ToSortableDateString();
 		    src["student"] = StudentID;
 
 		    return src;

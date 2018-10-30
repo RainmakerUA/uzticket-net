@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
+using RM.Lib.UzTicket.Contracts.DataContracts;
 using RM.Lib.UzTicket.Utils;
 
 namespace RM.Lib.UzTicket.Model

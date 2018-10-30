@@ -45,11 +45,6 @@ namespace RM.Lib.Hosting
 
 		public IEnumerable<T> GetAll<T>() => Provider.GetServices<T>();
 
-		//public bool IsRegistered<T>()
-		//{
-		//	return _provider.
-		//}
-
 		public object Activate(Type type)
 		{
 			var constructors = type.GetConstructors();
@@ -120,6 +115,8 @@ namespace RM.Lib.Hosting
 				{
 					initializer?.Invoke(this);
 				}
+				// Parallel version
+				// Task.WaitAll(_moduleInitializers.Select(init => Task.Run(() => init?.Invoke(this))).ToArray());
 			}
 		}
 	}

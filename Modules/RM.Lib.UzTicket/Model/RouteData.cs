@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using RM.Lib.UzTicket.Contracts;
+using RM.Lib.UzTicket.Contracts.DataContracts;
 using RM.Lib.UzTicket.Utils;
 
 namespace RM.Lib.UzTicket.Model
