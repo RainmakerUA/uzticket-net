@@ -110,7 +110,7 @@ namespace RM.UzTicket.Telegram
 			{
 				var sendTask = e.Message.Text.Equals("/test", StringComparison.InvariantCultureIgnoreCase)
 								? iBot.SendTextMessageAsync(message.Chat, "Please choose your language", replyMarkup: _testMarkup)
-								: iBot.SendTextMessageAsync(message.Chat, $"Got your <em>message</em>", ParseMode.Html, replyMarkup: new ReplyKeyboardRemove(), replyToMessageId: message.MessageId);
+								: iBot.SendTextMessageAsync(message.Chat, "Got your <em>message</em>", ParseMode.Html, replyMarkup: new ReplyKeyboardRemove(), replyToMessageId: message.MessageId);
 				var msg = sendTask.GetAwaiter().GetResult();
 			}
 #endif

@@ -83,8 +83,6 @@ namespace RM.Lib.UzTicket
 			{
 				Reset();
 				_cancelTokenSource.Dispose();
-				
-
 				_isDisposed = true;
 			}
 		}

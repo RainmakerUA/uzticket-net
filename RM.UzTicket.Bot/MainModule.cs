@@ -25,6 +25,16 @@ namespace RM.UzTicket.Bot
 				var header = _headers.TryGetValue(e.Type, out var scanHeader) ? scanHeader : null;
 				teleClient.SendMessageAsync(e.CallbackID ?? 0, header == null ? e.Message : header + "\n" + e.Message);
 			};
+
+			teleClient.Command += async (o, e) =>
+			{
+				switch (e.Command)
+				{
+					case Command.Reset:
+						await uzClient.ResetScan();
+						break;
+				}
+			};
 		}
 	}
 }
