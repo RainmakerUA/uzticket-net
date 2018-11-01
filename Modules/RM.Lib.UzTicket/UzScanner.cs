@@ -323,6 +323,7 @@ namespace RM.Lib.UzTicket
 			{
 				data.State = ScanEventType.None;
 				data.StateDescription = error;
+				data.Errors = 0;
 				_log.Warning($"Warning for scan [{data.Item.ScanSource}]: {error}");
 			}
 		}
