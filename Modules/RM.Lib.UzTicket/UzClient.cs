@@ -61,6 +61,11 @@ namespace RM.Lib.UzTicket
 		    }
 	    }
 
+		public string[] GetScanStatus(long? callback)
+		{
+			return _scanner.GetStatus(callback);
+		}
+
 		public async Task ResetScan()
 		{
 			_logger.Info("Resetting scanning...");

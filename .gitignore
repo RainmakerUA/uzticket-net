@@ -1,17 +1,21 @@
-# VS folders
+# VS
 .vs/
 obj/
 bin/
 packages/
 TestResults/
-.build/
-# Rider folders
+*.suo
+*.user
+*.tss
+# Rider
 .idea/
+
+# Folders
+.build/
+.rbuild/
+
 # Files
 #.env
 *~
 *.bak
 
-*.suo
-*.user
-*.tss

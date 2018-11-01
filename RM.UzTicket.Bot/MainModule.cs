@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using RM.Lib.Hosting.Contracts;
 using RM.Lib.UzTicket.Contracts;
 using RM.Lib.UzTicket.Contracts.DataContracts;
@@ -8,11 +10,15 @@ namespace RM.UzTicket.Bot
 {
 	internal static class MainModule
 	{
-		private static readonly IDictionary<ScanEventArgs.ScanType, string> _headers = new Dictionary<ScanEventArgs.ScanType, string>
+		private const string _successEmo = "\u2705";
+		private const string _warningEmo = "\u2757";
+		private const string _errorEmo = "\u274C";
+
+		private static readonly IDictionary<ScanEventType, string> _headers = new Dictionary<ScanEventType, string>
 																							{
-																								[ScanEventArgs.ScanType.Success] = "\u2705 Scan success!",
-																								[ScanEventArgs.ScanType.Warning] = "\u2757 Scan warning.",
-																								[ScanEventArgs.ScanType.Error] = "\u274C Scan error!"
+																								[ScanEventType.Success] = _successEmo + " Scan success!",
+																								[ScanEventType.Warning] = _warningEmo + " Scan warning.",
+																								[ScanEventType.Error] = _errorEmo + " Scan error!"
 																							};
 
 		public static void Initialize(IDependencyResolver resolver)
@@ -30,11 +36,21 @@ namespace RM.UzTicket.Bot
 			{
 				switch (e.Command)
 				{
+					case Command.Status:
+						var callback = e.IsMaster ? new long?() : e.Sender;
+						await teleClient.SendTypingAsync(callback ?? 0);
+						await SendScanStatus(teleClient, callback ?? 0, uzClient.GetScanStatus(callback));
+						break;
 					case Command.Reset:
 						await uzClient.ResetScan();
 						break;
 				}
 			};
+		}
+
+		private static Task SendScanStatus(ITelegramBot telebot, long sendTo, string[] statuses)
+		{
+			return telebot.SendMessageAsync(sendTo, statuses != null && statuses.Length > 0 ? String.Join("\n\n", statuses) : "You do not have any scans!");
 		}
 	}
 }

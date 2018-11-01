@@ -34,6 +34,12 @@ namespace RM.Lib.UzTicket
 			}
 
 			[DataMember]
+			public ScanEventType State { get; set; }
+
+			[DataMember]
+			public string StateDescription { get; set; }
+
+			[DataMember]
 			public ScanItem Item { get; set; }
 
 			[DataMember]
@@ -41,9 +47,6 @@ namespace RM.Lib.UzTicket
 
 			[DataMember]
 			public int Errors { get; set; }
-
-			[DataMember]
-			public string LastError { get; set; }
 
 			public AsyncLock GetLock()
 			{
@@ -148,16 +151,6 @@ namespace RM.Lib.UzTicket
 			return scanId;
 		}
 
-		public Tuple<int, string> GetStatus(string scanId)
-		{
-			if (_scanStates.TryGetValue(scanId, out var data))
-			{
-				return Tuple.Create(data.Attempts, data.LastError);
-			}
-
-			throw new ScanNotFoundException(scanId);
-		}
-
 		public void Abort(string scanId)
 		{
 			if (!_scanStates.ContainsKey(scanId))
@@ -171,6 +164,66 @@ namespace RM.Lib.UzTicket
 			{
 				Stop();
 			}
+		}
+
+		public string[] GetStatus(long? callbackID)
+		{
+			return _scanStates.Values.Where(sd => !callbackID.HasValue || callbackID.Value == (sd.Item.CallbackID ?? 0))
+										.Select(FormatScanData).ToArray();
+
+			string FormatScanData(ScanData data)
+			{
+				const string successEmo = "\u2705";
+				const string warningEmo = "\u2757";
+				const string errorEmo = "\u274C";
+				const string lookEmo = "\U0001F50D";
+				const string clipboard = "\U0001F4CB";
+				const string greyExclamation = "\u2755";
+				const string heavyExclamation = "\u2757";
+				const string greyQuestion = "\u2754";
+				const string redQuestion = "\u2753";
+
+				string header;
+				string footer;
+
+				switch (data.State)
+				{
+					case ScanEventType.None:
+						header = lookEmo + $"<b>Scan in progress:</b> {data.Attempts} attempts";
+						footer = !String.IsNullOrEmpty(data.StateDescription) ? greyQuestion + data.StateDescription : redQuestion + "(no state information)";
+						break;
+
+					case ScanEventType.Success:
+						header = successEmo + $"<b>Scan successful: {data.Attempts} attempts";
+						footer = "Session ID: " + data.StateDescription;
+						break;
+
+					case ScanEventType.Warning:
+						header = warningEmo + $"<b>Scan failing:</b> {data.Errors}/{_errorsToFail} errors, {data.Attempts} attempts";
+						footer = greyExclamation + data.StateDescription;
+						break;
+
+					case ScanEventType.Error:
+						header = errorEmo + $"<b>Scan failed:</b> {data.Errors} errors, {data.Attempts} attempts";
+						footer = heavyExclamation + data.StateDescription;
+						break;
+
+					default:
+						throw new ArgumentOutOfRangeException("Unknown Scan State!");
+				}
+
+				return header + "\n" + clipboard + data.Item.ScanSource + "\n" + footer;
+			}
+		}
+
+		public Tuple<int, string> GetStatus(string scanId)
+		{
+			if (_scanStates.TryGetValue(scanId, out var data))
+			{
+				return Tuple.Create(data.Attempts, data.StateDescription);
+			}
+
+			throw new ScanNotFoundException(scanId);
 		}
 
 		public void Reset()
@@ -253,23 +306,30 @@ namespace RM.Lib.UzTicket
 				var msg = $"Errors: {data.Errors} in a row on scanning [{data.Item.ScanSource}]: {error}";
 
 				_log.Error(msg);
-				data.LastError = error;
+				data.StateDescription = error;
 
 				if (data.Errors >= _errorsToFail)
 				{
-					ScanEvent?.Invoke(this, new ScanEventArgs(data.Item.CallbackID, ScanEventArgs.ScanType.Error, msg + "\n" + itemFailed));
+					data.State = ScanEventType.Error;
+					ScanEvent?.Invoke(this, new ScanEventArgs(data.Item.CallbackID, ScanEventType.Error, msg + "\n" + itemFailed));
 					_log.Error(itemFailed);
 				}
+				else
+				{
+					data.State = ScanEventType.Warning;
+				}	
 			}
 			else
 			{
+				data.State = ScanEventType.None;
+				data.StateDescription = error;
 				_log.Warning($"Warning for scan [{data.Item.ScanSource}]: {error}");
 			}
 		}
 
 		private async Task ScanAsync(string scanId, ScanData data)
 		{
-			if (data.Errors >= _errorsToFail)
+			if (data.State == ScanEventType.Error)
 			{
 				return;
 			}
@@ -321,7 +381,9 @@ namespace RM.Lib.UzTicket
 									{
 										var msg = $"Reserved ticket for [{item.ScanSource}]: {sessionId}";
 										_log.Info(msg);
-										ScanEvent?.Invoke(this, new ScanEventArgs(item.CallbackID, ScanEventArgs.ScanType.Success, msg));
+										data.State = ScanEventType.Success;
+										data.StateDescription = sessionId;
+										ScanEvent?.Invoke(this, new ScanEventArgs(item.CallbackID, ScanEventType.Success, msg));
 										//Abort(scanId); rebook again in case it is bought by requester
 										return;
 									}

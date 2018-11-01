@@ -16,6 +16,8 @@ namespace RM.Lib.UzTicket.Contracts
 
 	    Task<Station> GetFirstStationAsync(string name);
 
+	    string[] GetScanStatus(long? callback);
+
 	    Task ResetScan();
     }
 }
