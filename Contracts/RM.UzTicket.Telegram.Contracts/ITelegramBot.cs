@@ -16,5 +16,7 @@ namespace RM.UzTicket.Telegram.Contracts
 		Task SendMessageAsync(long id, string message);
 
 		Task SendMasterMessageAsync(string message);
+
+		Task SendTypingAsync(long id);
 	}
 }

@@ -4,15 +4,8 @@ namespace RM.Lib.UzTicket.Contracts.DataContracts
 {
 	public sealed class ScanEventArgs : EventArgs
 	{
-		public enum ScanType
-		{
-			None = 0,
-			Success,
-			Warning,
-			Error
-		}
 
-		public ScanEventArgs(long? callbackID, ScanType type, string message)
+		public ScanEventArgs(long? callbackID, ScanEventType type, string message)
 		{
 			CallbackID = callbackID;
 			Type = type;
@@ -23,7 +16,7 @@ namespace RM.Lib.UzTicket.Contracts.DataContracts
 
 		public long? CallbackID { get; }
 
-		public ScanType Type { get; }
+		public ScanEventType Type { get; }
 
 		public string Message { get; }
 	}
