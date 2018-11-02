@@ -18,11 +18,13 @@ namespace RM.UzTicket.Bot
 
 			LogFactory.SetDefaultLogFactory(new ConsoleLog());
 
-			host.Initialize();
+			//host.Initialize();
 
-			MainModule.Initialize(host.Environment.Resolver);
+			//MainModule.Initialize(host.Environment.Resolver);
 			
-			host.Start();
+			//host.Start();
+
+			await MainModule.Test();
 
 			await WaitForCancelKey();
 

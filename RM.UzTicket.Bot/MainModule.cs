@@ -2,6 +2,8 @@
 using RM.Lib.Hosting.Contracts;
 using RM.Lib.UzTicket.Contracts;
 using RM.Lib.UzTicket.Contracts.DataContracts;
+using RM.UzTicket.Data;
+using RM.UzTicket.Settings;
 using RM.UzTicket.Telegram.Contracts;
 
 namespace RM.UzTicket.Bot
@@ -14,6 +16,22 @@ namespace RM.UzTicket.Bot
 																								[ScanEventArgs.ScanType.Warning] = "\u2757 Scan warning.",
 																								[ScanEventArgs.ScanType.Error] = "\u274C Scan error!"
 																							};
+
+		public static async Task Test()
+		{
+			var settingsProvider = SettingsProvider.Load();
+			var dataProvider = new RedisDataProvider(settingsProvider);
+			await dataProvider.ConnectAsync();
+
+			var items = await dataProvider.GetProxyItemsAsync();
+
+			Console.WriteLine("Proxy items:");
+
+			foreach (var item in items)
+			{
+				Console.WriteLine(item);
+			}
+		}
 
 		public static void Initialize(IDependencyResolver resolver)
 		{
