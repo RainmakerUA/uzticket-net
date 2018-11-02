@@ -33,6 +33,8 @@ namespace RM.UzTicket.Settings
 		public string DatabaseUrl { get; private set; }
 		
 		public string DatabasePassword { get; private set; }
+
+		public string ConnectionString { get; private set; }
 		
 		
 		public string BaseUrl { get; private set; }
@@ -61,10 +63,11 @@ namespace RM.UzTicket.Settings
 			return this;
 		}
 
-		public SettingsData SetPersistenceSettings(string dbUrl, string dbPass)
+		public SettingsData SetPersistenceSettings(string dbUrl, string dbPass, string connStr)
 		{
 			DatabaseUrl = dbUrl;
 			DatabasePassword = Deobfuscator.TryDeobfuscate(dbPass);
+			ConnectionString = connStr;
 
 			return this;
 		}
