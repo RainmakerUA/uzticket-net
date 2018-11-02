@@ -7,7 +7,8 @@ namespace RM.UzTicket.Telegram.Contracts
 		None = 0,
 		Station,
 		Train,
-
+		Status,
+		Reset,
 #if DEBUG
 		Test = 999999
 #endif

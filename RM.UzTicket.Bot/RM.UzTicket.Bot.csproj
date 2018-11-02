@@ -37,8 +37,8 @@
     <ProjectReference Include="..\RM.Lib.Utility\RM.Lib.Utility.csproj" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command=":; exit 0&#xD;&#xA;if $(ConfigurationName) == Debug copy /A /Y $(SolutionDir).env $(ProjectDir)$(OutDir).env" />
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(ConfigurationName)' == 'Debug'">
+    <Exec Command="copy /A /Y $(SolutionDir).env $(ProjectDir)$(OutDir).env" />
   </Target>
 
 </Project>

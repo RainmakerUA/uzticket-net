@@ -5,5 +5,7 @@ namespace RM.UzTicket.Settings.Contracts
         string DatabaseUrl { get; }
         
         string DatabasePassword { get; }
+
+		string ConnectionString { get; }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Reflection;
 using RM.UzTicket.Settings.Contracts;
 
 namespace RM.UzTicket.Settings
@@ -34,6 +33,8 @@ namespace RM.UzTicket.Settings
 		public string DatabaseUrl { get; private set; }
 		
 		public string DatabasePassword { get; private set; }
+
+		public string ConnectionString { get; private set; }
 		
 		
 		public string BaseUrl { get; private set; }
@@ -56,16 +57,17 @@ namespace RM.UzTicket.Settings
 
 		public SettingsData SetTelegramSettings(string token, string master)
 		{
-			BotToken = Deobfuscate(token, 40);
+			BotToken = Deobfuscator.TryDeobfuscate(token);
 			MasterChatID = Int64.TryParse(master, out var id) ? id : new long?();
 
 			return this;
 		}
 
-		public SettingsData SetPersistenceSettings(string dbUrl, string dbPass)
+		public SettingsData SetPersistenceSettings(string dbUrl, string dbPass, string connStr)
 		{
 			DatabaseUrl = dbUrl;
-			DatabasePassword = Deobfuscate(dbPass, 50);
+			DatabasePassword = Deobfuscator.TryDeobfuscate(dbPass);
+			ConnectionString = connStr;
 
 			return this;
 		}
@@ -78,24 +80,6 @@ namespace RM.UzTicket.Settings
 			Temp = temp;
 
 			return this;
-		}
-
-		private static string Deobfuscate(string str, byte code)
-		{
-#if DEBUG
-			var resultLength = str.Length / 2;
-			var result = new char[resultLength];
-
-			for (int i = 0; i < resultLength; i++)
-			{
-				char ch1 = str[2 * i], ch2 = str[2 * i + 1];
-				result[i] = (char)((ch1 - 0x30) * 10 + (ch2 - 0x30) + code);
-			}
-
-			return new string(result);
-#else
-			return str;
-#endif
 		}
 	}
 }

@@ -10,7 +10,7 @@ namespace RM.Lib.UzTicket.Contracts.DataContracts
 		public string ScanSource { get; set; }
 
 		[DataMember(IsRequired = false)]
-		public int? CallbackID { get; set; }
+		public long? CallbackID { get; set; }
 
 		[DataMember(IsRequired = true)]
 		public string FirstName { get; set; }

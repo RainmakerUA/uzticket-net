@@ -61,6 +61,11 @@ namespace RM.UzTicket.Telegram
 		{
 			return _masterChatID.HasValue ? SendMessageAsync(_masterChatID.Value, message) : Task.CompletedTask;
 		}
+
+		public Task SendTypingAsync(long id)
+		{
+			return _client.SendChatActionAsync(id == 0 ? _masterChatID ?? 0 : id, ChatAction.Typing);
+		}
 		
 		public static void Initialize(IDependencyResolver resolver)
 		{
@@ -104,13 +109,14 @@ namespace RM.UzTicket.Telegram
 		{
 			var message = e.Message;
 			var messageFrom = message.From;
-
+			var isMaster = messageFrom.Id == _masterChatID;
 #if DEBUG
-			if (sender is ITelegramBotClient iBot && message.From.Id == _masterChatID)
+			if (sender is ITelegramBotClient iBot && isMaster)
 			{
 				var sendTask = e.Message.Text.Equals("/test", StringComparison.InvariantCultureIgnoreCase)
 								? iBot.SendTextMessageAsync(message.Chat, "Please choose your language", replyMarkup: _testMarkup)
-								: iBot.SendTextMessageAsync(message.Chat, $"Got your <em>message</em>", ParseMode.Html, replyMarkup: new ReplyKeyboardRemove(), replyToMessageId: message.MessageId);
+								: iBot.SendTextMessageAsync(message.Chat, "Got your <em>message</em>", ParseMode.Html, replyMarkup: new ReplyKeyboardRemove(), replyToMessageId: message.MessageId);
+				
 				var msg = sendTask.GetAwaiter().GetResult();
 			}
 #endif
@@ -127,7 +133,7 @@ namespace RM.UzTicket.Telegram
 					{
 						var args = text.Substring(entity.Length).Split("\u0020".ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
 						_log.Debug("TeleBot got command {0}({1})", command, String.Join(", ", args));
-						Command?.Invoke(this, new CommandEventArgs(messageFrom.Id, command, args));
+						Command?.Invoke(this, new CommandEventArgs(messageFrom.Id, isMaster, command, args));
 					}
 					else
 					{
@@ -138,7 +144,7 @@ namespace RM.UzTicket.Telegram
 				else
 				{
 					_log.Debug("TeleBot got message: " + text);
-					Message?.Invoke(this, new MessageEventArgs(messageFrom.Id, text));
+					Message?.Invoke(this, new MessageEventArgs(messageFrom.Id, isMaster, text));
 				}
 			}
 		}
@@ -147,6 +153,7 @@ namespace RM.UzTicket.Telegram
 		{
 			var query = e.CallbackQuery;
 			var from = query.From.Id;
+			var isMaster = @from == _masterChatID;
 			var message = query.Message;
 			var messageID = message?.MessageId;
 			var data = query.Data;
@@ -154,15 +161,14 @@ namespace RM.UzTicket.Telegram
 			_log.Debug("Query Callback from {0}: \"{1}\" for message ID = {2}", query.From.Username, query.Data, messageID?.ToString() ?? "(no mID)");
 
 #if DEBUG
-			if (sender is ITelegramBotClient iBot && from == _masterChatID && message != null)
+			if (sender is ITelegramBotClient iBot && isMaster && message != null)
 			{
 				var rMarkup = data.StartsWith("S-") ? null : _testMarkup2;
 				var sendTask = iBot.EditMessageTextAsync(new ChatId(from), messageID.Value, $"{message.Text}\nAnswer: <i>{data}</i>", ParseMode.Html, replyMarkup: rMarkup);
 				var msg = sendTask.GetAwaiter().GetResult();
 			}
 #endif
-
-			Response?.Invoke(this, new ResponseEventArgs(from, messageID ?? 0, data));
+			Response?.Invoke(this, new ResponseEventArgs(from, isMaster, messageID ?? 0, data));
 		}
 
 		private void BotReceiveError(object sender, ReceiveErrorEventArgs e)

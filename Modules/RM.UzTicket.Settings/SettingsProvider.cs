@@ -8,12 +8,12 @@ using RM.UzTicket.Settings.Contracts;
 
 namespace RM.UzTicket.Settings
 {
-	internal class SettingsProvider : ISettingsProvider
+	public class SettingsProvider : ISettingsProvider
 	{
 		private const string _varPrefix = "UZTB_";
 #if DEBUG
 		private const string _env = ".env";
-		private const string _envPattern = @"^\s*{0}\s*=\s*(?'val'\S*)\s*$";
+		private const string _envPattern = @"^\s*{0}\s*=\s*(?'val'.+?)\s*$";
 #endif
 		private static readonly string[] _varNames;
 		
@@ -33,6 +33,7 @@ namespace RM.UzTicket.Settings
 							
 							"REDISURL",
 							"REDISPWD",
+							"REDISSTRING",
 							
 							"UZBASEURL",
 							"UZSESSIONCOOKIE",
@@ -75,7 +76,7 @@ namespace RM.UzTicket.Settings
 								GetVariable("PROXYPATH"), GetVariable("PROXYRE")
 							)
 					.SetTelegramSettings(GetVariable("TELEBOTKEY"), GetVariable("TELEMASTER"))
-					.SetPersistenceSettings(GetVariable("REDISURL"), GetVariable("REDISPWD"))
+					.SetPersistenceSettings(GetVariable("REDISURL"), GetVariable("REDISPWD"), GetVariable("REDISSTRING"))
 					.SetUzSettings(GetVariable("UZBASEURL"), GetVariable("UZSESSIONCOOKIE"), GetVariable("UZSCANDELAY"), GetVariable("TEMP_SCAN"));
 		}
 
