@@ -23,21 +23,31 @@ namespace RM.UzTicket.Bot
 																								[ScanEventType.Error] = _errorEmo + " Scan error!"
 																							};
 
-		public static async Task Test()
-		{
-			var settingsProvider = SettingsProvider.Load();
-			var dataProvider = new RedisDataProvider(settingsProvider);
-			await dataProvider.ConnectAsync();
+		//public static async Task Test()
+		//{
+		//	var settingsProvider = SettingsProvider.Load();
+		//	var dataProvider = new PersistenceProvider(settingsProvider);
+		//	var nums = new[] { 2134L, 4141L, 090241L, 123456L, 832571L };
 
-			var items = await dataProvider.GetProxyItemsAsync();
+		//	using (var client = await dataProvider.GetClientAsync("proxy"))
+		//	{
+		//		var res = await client.SetListAsync("list", nums);
+		//	}
 
-			Console.WriteLine("Proxy items:");
+		//	await Task.Delay(16 * 1000);
 
-			foreach (var item in items)
-			{
-				Console.WriteLine(item);
-			}
-		}
+		//	using (var client = await dataProvider.GetClientAsync("proxy"))
+		//	{
+		//		var items = await client.GetListAsync<int>("list");
+
+		//		Console.WriteLine("Proxy items:");
+
+		//		foreach (var item in items)
+		//		{
+		//			Console.WriteLine(item);
+		//		}
+		//	}
+		//}
 
 		public static void Initialize(IDependencyResolver resolver)
 		{

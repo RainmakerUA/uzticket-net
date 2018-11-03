@@ -135,7 +135,9 @@ namespace RedisBoost
 
 		public string ConnectionString { get; private set; }
 		public IRedisSerializer Serializer { get; private set; }
+		public bool IsAuthenticated => Interlocked.Read(ref _isAuth) == 1L;
 
+		private long _isAuth;
 		private int _disposed;
 		private readonly IRedisChannel _channel;
 		private readonly RedisConnectionStringBuilder _connectionStringBuilder;

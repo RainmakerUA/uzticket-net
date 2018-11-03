@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Contracts\RM.Lib.Hosting.Contracts\RM.Lib.Hosting.Contracts.csproj" />
+    <ProjectReference Include="..\..\Contracts\RM.UzTicket.Data.Contracts\RM.UzTicket.Data.Contracts.csproj" />
     <ProjectReference Include="..\..\Contracts\RM.UzTicket.Settings.Contracts\RM.UzTicket.Settings.Contracts.csproj" />
     <ProjectReference Include="..\RedisBoost\RedisBoost.csproj" />
   </ItemGroup>

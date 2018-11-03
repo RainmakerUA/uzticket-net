@@ -10,10 +10,7 @@ namespace System.Data.SqlClient
 
 		public SqlConnectionStringBuilder(string connectionString)
 		{
-			var (ds, cat) = ParseConnectionString(connectionString);
-
-			DataSource = ds;
-			InitialCatalog = cat;
+			(DataSource, InitialCatalog) = ParseConnectionString(connectionString);
 		}
 
 		public string DataSource { get; }

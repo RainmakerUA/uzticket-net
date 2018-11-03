@@ -16,6 +16,7 @@
  */
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 using RedisBoost.Misk;
 using RedisBoost.Core;
@@ -26,7 +27,16 @@ namespace RedisBoost
 	{
 		public Task<string> AuthAsync(string password)
 		{
-			return StatusCommand(RedisConstants.Auth, password.ToBytes());
+			return StatusCommand(RedisConstants.Auth, password.ToBytes())
+					.ContinueWithIfNoError(t =>
+												{
+													if (t.Result == "OK")
+													{
+														Interlocked.CompareExchange(ref _isAuth, 1L, 0L);
+													}
+
+													return t.Result;
+												});
 		}
 
 		public Task<Bulk> EchoAsync<T>(T message)

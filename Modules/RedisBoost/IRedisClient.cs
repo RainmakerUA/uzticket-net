@@ -26,6 +26,7 @@ namespace RedisBoost
 	{
 		IRedisSerializer Serializer { get; }
 		string ConnectionString { get; }
+		bool IsAuthenticated { get; }
 
 		Task<RedisResponse> ExecuteAsync(string command, params object[] args);
 		/// <summary>
@@ -102,7 +103,7 @@ namespace RedisBoost
 		/// </summary>
 		/// <param name="key"></param>
 		/// <param name="db"></param>
-		/// <returns></returns>
+		/// <returns></returns>2 
 		Task<long> MoveAsync(string key, int db);
 		/// <summary>
 		/// Inspect the internals of Redis objects. <br/> Complexity: O(1) for all the currently implemented subcommands.
