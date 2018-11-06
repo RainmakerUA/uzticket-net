@@ -48,7 +48,7 @@ namespace RM.UzTicket.Data
 				var execResult = (await _client.ExecAsync()).AsArray<string>();
 				return result;
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				var discardResult = await _client.DiscardAsync();
 				throw;

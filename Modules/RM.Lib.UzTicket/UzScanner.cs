@@ -106,8 +106,10 @@ namespace RM.Lib.UzTicket
 						var scanParts = line.Split('|');
 
 						var callback = Int32.TryParse(scanParts[0], out var cbID) ? cbID : new int?();
-						var stFrom = await service.FetchFirstStationAsync(scanParts[1]);
-						var stTo = await service.FetchFirstStationAsync(scanParts[2]);
+						var (stFrom, stTo) = await Task.WhenAll(
+																service.FetchFirstStationAsync(scanParts[1]),
+																service.FetchFirstStationAsync(scanParts[2])
+															);
 						var date = DateTime.ParseExact(scanParts[3], "dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture);
 						var train = scanParts[4];
 						var coach = scanParts[5];
