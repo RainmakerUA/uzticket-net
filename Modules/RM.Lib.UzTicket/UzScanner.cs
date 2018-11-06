@@ -274,22 +274,33 @@ namespace RM.Lib.UzTicket
 
 			while (isRunning)
 			{
-				foreach (var statePair in _scanStates)
+				//foreach (var statePair in _scanStates)
+				//{
+				//	try
+				//	{
+				//		ScanAsync(statePair.Key, statePair.Value).Wait(_cancelToken);
+				//	}
+				//	catch (Exception e)
+				//	{
+				//		HandleError(statePair.Key, statePair.Value, e.Message, true);
+				//	}
+				//}
+
+				using (var service = CreateService())
 				{
-					try
-					{
-						ScanAsync(statePair.Key, statePair.Value).Wait(_cancelToken);
-					}
-					catch (Exception e)
-					{
-						HandleError(statePair.Key, statePair.Value, e.Message, true);
-					}
+					Task.WhenAll(_scanStates.Select(kv => GetScanItemTask(service, kv))).Wait(_cancelToken);
 				}
 
 				isRunning = _cancelToken.WaitedOrCancelled(TimeSpan.FromSeconds(_delay));
 			}
 
 			_log.Debug("Run() end");
+
+			Task GetScanItemTask(UzService service, KeyValuePair<string, ScanData> statePair)
+			{
+				return ScanAsync(service, statePair.Key, statePair.Value)
+						.Then(failFunc: exc => HandleError(statePair.Key, statePair.Value, exc.Message, true));
+			}
 		}
 
 		private UzService CreateService()
@@ -330,7 +341,8 @@ namespace RM.Lib.UzTicket
 			}
 		}
 
-		private async Task ScanAsync(string scanId, ScanData data)
+		//private async Task ScanAsync(string scanId, ScanData data)
+		private async Task ScanAsync(UzService service, string scanId, ScanData data)
 		{
 			if (data.State == ScanEventType.Error)
 			{
@@ -343,7 +355,7 @@ namespace RM.Lib.UzTicket
 				{
 					data.Attempts++;
 
-					using (var service = CreateService())
+					//using (var service = CreateService())
 					{
 						var item = data.Item;
 						var trains = await service.ListTrainsAsync(item.Date, item.Source, item.Destination);

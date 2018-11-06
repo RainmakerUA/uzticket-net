@@ -38,7 +38,28 @@ namespace RM.Lib.UzTicket.Utils
 			item3 = length > 2 ? array[2] : default;
 		}
 
-		public static Task<TRes> Then<T, TRes>(this T task, Func<T, TRes> successFunc, Func<Exception, TRes> failFunc = null) where T : Task
+		public static Task Then<T>(this T task, Action<T> successFunc = null, Action<Exception> failFunc = null) where T : Task
+		{
+			return task.ContinueWith(t =>
+			{
+				if (t.IsFaulted)
+				{
+					var exception = UnwrapAggregate(t.Exception);
+					if (failFunc != null)
+					{
+						failFunc(exception);
+					}
+					else
+					{
+						throw exception;
+					}
+				}
+
+				successFunc?.Invoke((T)t);
+			});
+		}
+
+		public static Task<TRes> Then<T, TRes>(this T task, Func<T, TRes> successFunc = null, Func<Exception, TRes> failFunc = null) where T : Task
 		{
 			return task.ContinueWith(t =>
 										{
@@ -47,7 +68,18 @@ namespace RM.Lib.UzTicket.Utils
 												var exception = UnwrapAggregate(t.Exception);
 												return failFunc != null ? Task.FromResult(failFunc(exception)) : Task.FromException<TRes>(exception);
 											}
-											return Task.FromResult(successFunc((T)t));
+
+											if (successFunc != null)
+											{
+												return Task.FromResult(successFunc((T)t));
+											}
+
+											if (t is Task<TRes> taskRes)
+											{
+												return taskRes;
+											}
+
+											throw new NotSupportedException($"Not supported default conversion from {typeof(T).FullName} to result type {typeof(TRes).FullName}");
 										}).Unwrap();
 		}
 
