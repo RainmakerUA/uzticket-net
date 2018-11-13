@@ -394,7 +394,7 @@ namespace RM.Lib.UzTicket
 							}
 							else
 							{
-								HandleError(scanId, data, $"Train {item.TrainNumber} not found", true);
+								HandleError(scanId, data, $"Train {item.TrainNumber} not found", false);
 							}
 						}
 						else
