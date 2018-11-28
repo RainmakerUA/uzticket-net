@@ -112,6 +112,8 @@ namespace RedisBoost.Core.Serialization
 				return double.Parse(DeserializeToString(value), CultureInfo.InvariantCulture);
 			if (type == typeof(char))
 				return DeserializeToString(value)[0];
+			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+				return Deserialize(type.GetGenericArguments()[0], value);
 
 			return DeserializeComplexValue(type, value);
 		}
