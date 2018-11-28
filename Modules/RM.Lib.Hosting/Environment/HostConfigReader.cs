@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
 using RM.Lib.Common.Contracts.Log;
@@ -10,38 +11,69 @@ namespace RM.Lib.Hosting.Environment
 {
 	internal sealed class HostConfigReader
 	{
-		private const string _schemaUrn = "urn:rm/host.config";
+		private const string _hostConfig = "host.config";
+		private const string _schemaUrn = "urn:rm/" + _hostConfig;
 		private const string _resNotFoundFormat = "Resource host.config not found in assembly {0}.";
 
 		private readonly ILog _log;
-		private readonly List<ConfigModule> _modules = new List<ConfigModule>();
-		private readonly List<ConfigSection> _sections = new List<ConfigSection>();
-
+		private readonly List<ConfigModule> _modules;
+		private readonly List<ConfigSection> _sections;
+		
 		public HostConfigReader(ILog log)
 		{
 			_log = log;
+			_modules = new List<ConfigModule>();
+			_sections = new List<ConfigSection>();
 		}
 
-		public void Read()
+		public IEnumerable<ConfigModule> Modules => _modules;
+
+		public IEnumerable<ConfigSection> Sections => _sections;
+
+		public bool ReadDefaultResource(bool throwIfUnsuccessful = true)
 		{
+			var scannedAssemblies = new HashSet<Assembly>();
 			var assemblies = new[] { Assembly.GetExecutingAssembly(), Assembly.GetCallingAssembly(), Assembly.GetEntryAssembly() };
 
-			foreach (var asm in assemblies)
+			foreach (var asm in assemblies.Where(scannedAssemblies.Add))
 			{
-				using (var stream = GetConfigResourceStream(asm))
+				try
 				{
-					if (stream != null)
-					{
-						_log?.Info("Host config resource found.");
-						LoadConfig(stream);
-						return;
-					}
-
-					_log?.Info(_resNotFoundFormat, asm.GetName().Name);
+					Read(asm);
+					_log?.Info("Host config resource found.");
+					return true;
+				}
+				catch (Exception e)
+				{
+					_log?.Info(e.ToString());
 				}
 			}
 
-			throw new Exception("Host Configuration not found!");
+			return throwIfUnsuccessful ? throw new Exception("Host Configuration not found!") : false;
+		}
+
+		public bool ReadDefaultFile(bool throwIfUnsuccessful = true)
+		{
+			var configs = new[] { _hostConfig, @"Properties\" + _hostConfig };
+			var configDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) ?? @".\";
+
+			foreach (var configName in configs)
+			{
+				var fullName = Path.Combine(configDir, configName);
+
+				try
+				{
+					Read(fullName);
+					_log?.Info("Host config file loaded.");
+					return true;
+				}
+				catch (Exception e)
+				{
+					_log?.Info("Cannot read host config '{0}':\n{1}", fullName, e);
+				}
+			}
+
+			return throwIfUnsuccessful ? throw new Exception("Host Configuration not found!") : false;
 		}
 
 		public void Read(Assembly assembly)
@@ -127,9 +159,5 @@ namespace RM.Lib.Hosting.Environment
 				_sections.Add(element);
 			}
 		}
-
-		public IEnumerable<ConfigModule> Modules => _modules;
-
-		public IEnumerable<ConfigSection> Sections => _sections;
 	}
 }

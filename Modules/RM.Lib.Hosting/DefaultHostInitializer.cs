@@ -32,7 +32,10 @@ namespace RM.Lib.Hosting
 
 			if (_configStream == null)
 			{
-				reader.Read();
+				if (!reader.ReadDefaultFile(false) && !reader.ReadDefaultResource(false))
+				{
+					throw new Exception("Host Configuration not found!");
+				}
 			}
 			else
 			{

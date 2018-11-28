@@ -62,6 +62,8 @@ namespace RM.Lib.Hosting
 			_log.Debug("RegisterType(interfaceType = {0}, Func<Type, object> factoryFunc = {1})", interfaceType, factoryFunc);
 		}
 
+		// TODO: Register scoped
+
 		public void RegisterSingletonType<TInterface, TClass>() where TInterface : class where TClass : class, TInterface
 		{
 			_services.AddSingleton<TInterface, TClass>();
