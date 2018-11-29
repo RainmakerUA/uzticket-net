@@ -14,6 +14,9 @@ namespace RM.Lib.UzTicket.Contracts.DataContracts
 		[DataMember(IsRequired = false)]
 		public string Region { get; set; }
 
+		[DataMember(IsRequired = false)]
+		public string Country { get; set; }
+
 		public override string ToString()
 		{
 			return $"{Title} ({ID})";

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 
 namespace RM.Lib.UzTicket.Utils
 {
@@ -15,9 +14,12 @@ namespace RM.Lib.UzTicket.Utils
 			return dateTime.ToString("yyyy-MM-dd");
 		}
 
-		public static bool WaitedOrCancelled(this CancellationToken token, TimeSpan timeout)
+		public static void Deconstruct<T>(this T[] array, out T item1, out T item2)
 		{
-			return !token.IsCancellationRequested && !token.WaitHandle.WaitOne(timeout);
+			var length = array.Length;
+
+			item1 = length > 0 ? array[0] : default;
+			item2 = length > 1 ? array[1] : default;
 		}
 
 		public static void Deconstruct<T>(this T[] array, out T item1, out T item2, out T item3)

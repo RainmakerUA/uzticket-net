@@ -19,7 +19,6 @@ namespace RM.Lib.UzTicket
 {
 	internal sealed class UzService : IDisposable
 	{
-		private const string _baseUrlDefault = "https://booking.uz.gov.ua/ru"; // strict without trailing '/'!
 		private const string _sessionIdKeyDefault = "_gv_sessid";
 		private const string _dataKey = "data";
 		private const int _requestTimeout = 10;
@@ -37,7 +36,7 @@ namespace RM.Lib.UzTicket
 
 		public UzService(string baseUrl = null, string sessionIdKey = null, IProxyProvider proxyProvider = null, ILog logger = null)
 		{
-			_baseUrl = baseUrl.OrDefault(_baseUrlDefault);
+			_baseUrl = baseUrl.OrDefault("https://booking.uz.gov.ua/ru");
 			_sessionIdKey = sessionIdKey.OrDefault(_sessionIdKeyDefault);
 			_proxyProvider = proxyProvider;
 			_logger = logger;
@@ -55,6 +54,8 @@ namespace RM.Lib.UzTicket
 				_httpHandler.Dispose();
 				_httpHandler = null;
 
+				_userAgent = null;
+
 				_isDisposed = true;
 			}
 		}
@@ -65,94 +66,71 @@ namespace RM.Lib.UzTicket
 			return value != null ? _sessionIdKey + "=" + value : null;
 		}
 
-		public async Task<Station[]> SearchStationAsync(string name)
+		public Task<Station[]> SearchStationAsync(string name)
 		{
 			var path = $"train_search/station/?term={name}";
-			var json = await GetJson(path, HttpMethod.Get);
-			return json.Deserialize<Station[]>();
+			return GetJsonAsync<Station[]>(path, HttpMethod.Get);
 		}
 
-		public async Task<Station> FetchFirstStationAsync(string name)
+		public Task<Station> FetchFirstStationAsync(string name)
 		{
-			var stations = await SearchStationAsync(name);
-			return stations.FirstOrDefault();
+			return SearchStationAsync(name).Then(t => t.Result.FirstOrDefault());
 		}
 
-		public async Task<Train[]> ListTrainsAsync(DateTime date, Station source, Station destination)
+		public Task<Train[]> ListTrainsAsync(DateTime date, Station source, Station destination)
 		{
 			var data = new Dictionary<string, string>
-							{
-								["from"] = source.ID.ToString(),
-								["to"] = destination.ID.ToString(),
-								["date"] = date.ToSortableDateString(),
-								["time"] = "00:00",
-								["another_ec"] = "0",
-								["get_tpl"] = "0"
-							};
+			{
+				["from"] = source.ID.ToString(),
+				["to"] = destination.ID.ToString(),
+				["date"] = date.ToSortableDateString(),
+				["time"] = "00:00",
+				["another_ec"] = "0",
+				["get_tpl"] = "0"
+			};
 
-			var result = await GetJson("train_search/", data: data);
-
-			return result["list"].Deserialize<Train[]>();
+			return GetJsonAsync<Train[]>("train_search/", data: data, jsonKey: "list");
 		}
 
-		public async Task<Train> FetchTrainAsync(DateTime date, Station source, Station destination, string trainNumber)
+		public Task<Train> FetchTrainAsync(DateTime date, Station source, Station destination, string trainNumber)
 		{
-			try
-			{
-				var trains = await ListTrainsAsync(date, source, destination);
-				return trains.GetByNumber(trainNumber);
-			}
-			catch (ResponseException)
-			{
-				return null;
-			}
+			return ListTrainsAsync(date, source, destination).Then(
+																t => t.Result.GetByNumber(trainNumber),
+																ex => ex is ResponseException ? (Train)null : throw ex
+															);
 		}
 
-		public async Task<Coach[]> ListCoachesAsync(Train train, CoachType coachType)
+		public Task<Coach[]> ListCoachesAsync(Train train, CoachType coachType)
 		{
 			var data = new IPersistable[] { train, coachType }.ToRequestDictionary(
 																	new Dictionary<string, string>
-																		{
-																			["another_ec"] = "0"
-																		});
-			var result = await GetJson("train_wagons/", data: data);
-
-			return result["wagons"].Deserialize<Coach[]>();
+																	{
+																		["another_ec"] = "0"
+																	});
+			return GetJsonAsync<Coach[]>("train_wagons/", data: data, jsonKey: "wagons");
 		}
 
-		public async Task<IReadOnlyDictionary<string, int[]>> ListSeatsAsync(Train train, Coach coach)
+		public Task<IReadOnlyDictionary<string, int[]>> ListSeatsAsync(Train train, Coach coach)
 		{
-			JToken result;
-
-			try
-			{
-				result = await GetJson("train_wagon/", data: new IPersistable[] { train, coach }.ToRequestDictionary());
-			}
-			catch (ResponseException)
-			{
-				return null;
-			}
-			
-			return ParseSeats(result["places"]);
+			return GetJsonAsync("train_wagon/", data: new IPersistable[] { train, coach }.ToRequestDictionary(), jsonKey: "places")
+					.Then(t => ParseSeats(t.Result), ex => ex is ResponseException ? (IReadOnlyDictionary<string, int[]>)null : throw ex);
 		}
 
-		public async Task<dynamic> BookSeatAsync(Train train, Coach coach, Seat seat, Passenger passenger)
+		public Task<dynamic> BookSeatAsync(Train train, Coach coach, Seat seat, Passenger passenger)
 		{
 			var data = new Dictionary<string, string>
-							{
-								["roundtrip"] = "0"
-							};
+			{
+				["roundtrip"] = "0"
+			};
 			var place = new IPersistable[] { train, coach, seat, passenger }
 							.ToRequestDictionary(new Dictionary<string, string> { ["ord"] = "0", ["reserve"] = "0" });
-					
+
 			foreach (var key in place.Keys)
 			{
 				data[$"places[0][{key}]"] = place[key];
 			}
 
-			var result = await GetJson("cart/add/", data: data);
-
-			return result as JObject;
+			return GetJsonAsync("cart/add/", data: data).Then(t => (dynamic)(t.Result as JObject));
 		}
 
 		/* Alternative booking request w/o places
@@ -181,13 +159,12 @@ namespace RM.Lib.UzTicket
 		wishes[0][wagon]: 6
 		*/
 
-		public async Task<Route> GetSelectedTrainRoute(Train train)
+		public Task<Route> GetSelectedTrainRouteAsync(Train train)
 		{
-			var routes = await GetTrainRoutes(new RouteData { Train = train });
-			return routes.FirstOrDefault();
+			return GetTrainRoutesAsync(new RouteData { Train = train }).Then(t => t.Result.FirstOrDefault());
 		}
 
-		public async Task<Route[]> GetTrainRoutes(params RouteData[] routes)
+		public Task<Route[]> GetTrainRoutesAsync(params RouteData[] routes)
 		{
 			var data = new Dictionary<string, string>();
 
@@ -201,28 +178,27 @@ namespace RM.Lib.UzTicket
 				}
 			}
 
-			var result = await GetJson("route/", data: data);
-
-			return result["routes"].Deserialize<Route[]>();
+			return GetJsonAsync<Route[]>("route/", data: data, jsonKey: "routes");
 		}
 
 		private IDictionary<string, string> GetDefaultHeaders()
 		{
 			return new Dictionary<string, string>
-						{
-							["User-Agent"] = _userAgent
-						};
+			{
+				["User-Agent"] = _userAgent
+			};
 		}
 
-		private async Task<string> GetString(string path, HttpMethod method, IDictionary<string, string> headers,
-												IDictionary<string, string> data)
+		private async Task<string> GetStringAsync(string path, HttpMethod method,
+													IDictionary<string, string> headers,
+													IDictionary<string, string> data)
 		{
 			var url = path;
 			var req = new HttpRequestMessage(method ?? HttpMethod.Post, url);
 
 			if (_userAgent == null)
 			{
-				using (var httpLock = AsyncLock.Lock(_httpInitLock, 1000))
+				using (var httpLock = AsyncLock.Lock(_httpInitLock))
 				{
 					if (httpLock.IsCaptured && _userAgent == null)
 					{
@@ -262,10 +238,12 @@ namespace RM.Lib.UzTicket
 			return await resp.Content.ReadAsStringAsync();
 		}
 
-		private async Task<JToken> GetJson(string path, HttpMethod method = null, IDictionary<string, string> headers = null,
-												IDictionary<string, string> data = null)
+		private async Task<JToken> GetJsonAsync(string path, HttpMethod method = null,
+													IDictionary<string, string> headers = null,
+													IDictionary<string, string> data = null,
+													string jsonKey = null)
 		{
-			var str = await GetString(path, method, headers, data);
+			var str = await GetStringAsync(path, method, headers, data);
 
 			JToken json;
 
@@ -309,24 +287,61 @@ namespace RM.Lib.UzTicket
 				throw new ResponseException(message, str);
 			}
 
-			return jObj != null && jObj.ContainsKey(_dataKey) ? json[_dataKey] : json;
+			var token = jObj != null && jObj.ContainsKey(_dataKey) ? json[_dataKey] : json;
+			return String.IsNullOrEmpty(jsonKey) ? token : token[jsonKey];
+		}
+
+		private Task<T> GetJsonAsync<T>(string path, HttpMethod method = null,
+											IDictionary<string, string> headers = null,
+											IDictionary<string, string> data = null,
+											string jsonKey = null)
+		{
+			return GetJsonAsync(path, method, headers, data, jsonKey).Then(t => t.Result.Deserialize<T>());
 		}
 
 		private async Task InitializeHttpClient()
 		{
-			_userAgent = UserAgentSelector.GetRandomAgent();
-			_httpHandler = new HttpClientHandler();
-			_httpClient = new HttpClient(_httpHandler)
-								{
-									BaseAddress = new Uri(_baseUrl),
-									Timeout = TimeSpan.FromSeconds(_requestTimeout)
-								};
+			var userAgent = UserAgentSelector.GetRandomAgent();
+			var httpHandler = new HttpClientHandler();
+			var httpClient = new HttpClient(httpHandler)
+			{
+				BaseAddress = new Uri(_baseUrl),
+				Timeout = TimeSpan.FromSeconds(_requestTimeout)
+			};
 
 			if (_proxyProvider != null)
 			{
-				var proxyUrl = await _proxyProvider.GetProxyAsync();
-				_httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
+				var proxyUrl = await _proxyProvider.GetProxyAsync(CheckProxy);
+				httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
 				_logger.Info("UzService uses proxy " + proxyUrl);
+			}
+
+			_httpClient = httpClient;
+			_httpHandler = httpHandler;
+			_userAgent = userAgent;
+		}
+
+		private async Task<bool> CheckProxy(string proxyUrl)
+		{
+			var uri = new Uri(_baseUrl);
+			var builder = new UriBuilder(uri) { Path = String.Empty };
+
+			uri = builder.Uri;
+
+			var handler = new HttpClientHandler { Proxy = new WebProxy(new Uri(proxyUrl)), AllowAutoRedirect = true };
+			var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(_requestTimeout) };
+
+			try
+			{
+				var req = new HttpRequestMessage(HttpMethod.Head, uri);
+				req.Headers.UserAgent.ParseAdd(UserAgentSelector.GetRandomAgent());
+
+				var resp = await client.SendAsync(req);
+				return resp.IsSuccessStatusCode;
+			}
+			catch (Exception e)
+			{
+				return false;
 			}
 		}
 

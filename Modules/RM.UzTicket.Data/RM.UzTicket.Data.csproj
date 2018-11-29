@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+<LangVersion>latest</LangVersion>
+    <AssemblyVersion>0.9.1.0</AssemblyVersion>
+    <FileVersion>0.9.1.0</FileVersion>
+    <Version>0.9.1</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Contracts\RM.Lib.Hosting.Contracts\RM.Lib.Hosting.Contracts.csproj" />
+    <ProjectReference Include="..\..\Contracts\RM.UzTicket.Data.Contracts\RM.UzTicket.Data.Contracts.csproj" />
+    <ProjectReference Include="..\..\Contracts\RM.UzTicket.Settings.Contracts\RM.UzTicket.Settings.Contracts.csproj" />
+    <ProjectReference Include="..\..\RM.Lib.Utility\RM.Lib.Utility.csproj" />
+    <ProjectReference Include="..\RedisBoost\RedisBoost.csproj" />
+  </ItemGroup>
+
+</Project>

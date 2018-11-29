@@ -31,6 +31,7 @@
     <ProjectReference Include="..\Modules\RM.Lib.Proxy\RM.Lib.Proxy.csproj" />
     <ProjectReference Include="..\Modules\RM.Lib.StateMachine\RM.Lib.StateMachine.csproj" />
     <ProjectReference Include="..\Modules\RM.Lib.UzTicket\RM.Lib.UzTicket.csproj" />
+    <ProjectReference Include="..\Modules\RM.UzTicket.Data\RM.UzTicket.Data.csproj" />
     <ProjectReference Include="..\Modules\RM.UzTicket.Settings\RM.UzTicket.Settings.csproj" />
     <ProjectReference Include="..\Modules\RM.UzTicket.Telegram\RM.UzTicket.Telegram.csproj" />
     <ProjectReference Include="..\RM.Lib.Utility\RM.Lib.Utility.csproj" />

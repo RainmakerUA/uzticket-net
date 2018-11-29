@@ -45,7 +45,7 @@ namespace RM.Lib.UzTicket.Model
 		[DataMember(Name = "air")]
 		public bool? AirConditioning { get; set; }
 
-		public string RailwayName => RailwayNames.GetName(Railway, false);
+		public string RailwayName => RailwayInfo.GetName(Railway, false);
 
 		public bool AirConditioningAvailable => AirConditioning ?? true;
 

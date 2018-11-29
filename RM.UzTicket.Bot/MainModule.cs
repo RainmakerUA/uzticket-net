@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using RM.Lib.Hosting.Contracts;
 using RM.Lib.UzTicket.Contracts;
 using RM.Lib.UzTicket.Contracts.DataContracts;
+using RM.UzTicket.Data;
+using RM.UzTicket.Settings;
 using RM.UzTicket.Telegram.Contracts;
 
 namespace RM.UzTicket.Bot
@@ -20,6 +22,32 @@ namespace RM.UzTicket.Bot
 																								[ScanEventType.Warning] = _warningEmo + " Scan warning.",
 																								[ScanEventType.Error] = _errorEmo + " Scan error!"
 																							};
+
+		//public static async Task Test()
+		//{
+		//	var settingsProvider = SettingsProvider.Load();
+		//	var dataProvider = new PersistenceProvider(settingsProvider);
+		//	var nums = new[] { 2134L, 4141L, 090241L, 123456L, 832571L };
+
+		//	using (var client = await dataProvider.GetClientAsync("proxy"))
+		//	{
+		//		var res = await client.SetListAsync("list", nums);
+		//	}
+
+		//	await Task.Delay(16 * 1000);
+
+		//	using (var client = await dataProvider.GetClientAsync("proxy"))
+		//	{
+		//		var items = await client.GetListAsync<int>("list");
+
+		//		Console.WriteLine("Proxy items:");
+
+		//		foreach (var item in items)
+		//		{
+		//			Console.WriteLine(item);
+		//		}
+		//	}
+		//}
 
 		public static void Initialize(IDependencyResolver resolver)
 		{

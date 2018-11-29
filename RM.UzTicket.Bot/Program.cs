@@ -24,6 +24,8 @@ namespace RM.UzTicket.Bot
 			
 			host.Start();
 
+			//await MainModule.Test();
+
 			await WaitForCancelKey();
 
 			if (host.State == HostState.Started)

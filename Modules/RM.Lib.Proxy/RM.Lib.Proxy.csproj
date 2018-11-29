@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Contracts\RM.Lib.Hosting.Contracts\RM.Lib.Hosting.Contracts.csproj" />
     <ProjectReference Include="..\..\Contracts\RM.Lib.Proxy.Contracts\RM.Lib.Proxy.Contracts.csproj" />
+    <ProjectReference Include="..\..\Contracts\RM.UzTicket.Data.Contracts\RM.UzTicket.Data.Contracts.csproj" />
     <ProjectReference Include="..\..\Contracts\RM.UzTicket.Settings.Contracts\RM.UzTicket.Settings.Contracts.csproj" />
     <ProjectReference Include="..\..\RM.Lib.Utility\RM.Lib.Utility.csproj" />
   </ItemGroup>
