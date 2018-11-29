@@ -19,7 +19,7 @@ namespace RM.Lib.UzTicket
 		private readonly IUzSettings _settings;
 		private readonly UzScanner _scanner;
 
-		public UzClient(ISettingsProvider settingsProvider, IProxyProvider proxyProvider)
+		public UzClient(ISettingsProvider settingsProvider, IProxyProvider proxyProvider = null)
 		{
 			_settingsProvider = settingsProvider;
 			_proxyProvider = proxyProvider;
@@ -28,16 +28,6 @@ namespace RM.Lib.UzTicket
 			_settings = _settingsProvider.GetSettings().UzService;
 			_scanner = new UzScanner(_settings, LogFactory.GetLog(nameof(UzScanner)), CreateService);
 		}
-
-		//public void StartScan()
-		//{
-		//	_scanner.Start();
-		//}
-
-		//public void StopScan()
-		//{
-		//	_scanner.Stop();
-		//}
 
 		public event EventHandler<ScanEventArgs> ScanEvent
 		{

@@ -19,7 +19,6 @@ namespace RM.Lib.UzTicket
 {
 	internal sealed class UzService : IDisposable
 	{
-		private const string _baseUrlDefault = "https://booking.uz.gov.ua/ru"; // strict without trailing '/'!
 		private const string _sessionIdKeyDefault = "_gv_sessid";
 		private const string _dataKey = "data";
 		private const int _requestTimeout = 10;
@@ -37,7 +36,7 @@ namespace RM.Lib.UzTicket
 
 		public UzService(string baseUrl = null, string sessionIdKey = null, IProxyProvider proxyProvider = null, ILog logger = null)
 		{
-			_baseUrl = baseUrl.OrDefault(_baseUrlDefault);
+			_baseUrl = baseUrl.OrDefault("https://booking.uz.gov.ua/ru");
 			_sessionIdKey = sessionIdKey.OrDefault(_sessionIdKeyDefault);
 			_proxyProvider = proxyProvider;
 			_logger = logger;
@@ -81,14 +80,14 @@ namespace RM.Lib.UzTicket
 		public Task<Train[]> ListTrainsAsync(DateTime date, Station source, Station destination)
 		{
 			var data = new Dictionary<string, string>
-							{
-								["from"] = source.ID.ToString(),
-								["to"] = destination.ID.ToString(),
-								["date"] = date.ToSortableDateString(),
-								["time"] = "00:00",
-								["another_ec"] = "0",
-								["get_tpl"] = "0"
-							};
+			{
+				["from"] = source.ID.ToString(),
+				["to"] = destination.ID.ToString(),
+				["date"] = date.ToSortableDateString(),
+				["time"] = "00:00",
+				["another_ec"] = "0",
+				["get_tpl"] = "0"
+			};
 
 			return GetJsonAsync<Train[]>("train_search/", data: data, jsonKey: "list");
 		}
@@ -190,8 +189,9 @@ namespace RM.Lib.UzTicket
 			};
 		}
 
-		private async Task<string>                                                                                       GetStringAsync(string path, HttpMethod method, IDictionary<string, string> headers,
-												IDictionary<string, string> data)
+		private async Task<string> GetStringAsync(string path, HttpMethod method,
+													IDictionary<string, string> headers,
+													IDictionary<string, string> data)
 		{
 			var url = path;
 			var req = new HttpRequestMessage(method ?? HttpMethod.Post, url);
@@ -235,11 +235,13 @@ namespace RM.Lib.UzTicket
 				throw new HttpException((int)resp.StatusCode, null);
 			}
 
-			return await resp.Content.ReadAsStringAsync().Then(t => t.Result);
+			return await resp.Content.ReadAsStringAsync();
 		}
 
-		private async Task<JToken> GetJsonAsync(string path, HttpMethod method = null, IDictionary<string, string> headers = null,
-												IDictionary<string, string> data = null, string jsonKey = null)
+		private async Task<JToken> GetJsonAsync(string path, HttpMethod method = null,
+													IDictionary<string, string> headers = null,
+													IDictionary<string, string> data = null,
+													string jsonKey = null)
 		{
 			var str = await GetStringAsync(path, method, headers, data);
 
@@ -289,8 +291,10 @@ namespace RM.Lib.UzTicket
 			return String.IsNullOrEmpty(jsonKey) ? token : token[jsonKey];
 		}
 
-		private Task<T> GetJsonAsync<T>(string path, HttpMethod method = null, IDictionary<string, string> headers = null,
-											IDictionary<string, string> data = null, string jsonKey = null)
+		private Task<T> GetJsonAsync<T>(string path, HttpMethod method = null,
+											IDictionary<string, string> headers = null,
+											IDictionary<string, string> data = null,
+											string jsonKey = null)
 		{
 			return GetJsonAsync(path, method, headers, data, jsonKey).Then(t => t.Result.Deserialize<T>());
 		}
@@ -307,7 +311,7 @@ namespace RM.Lib.UzTicket
 
 			if (_proxyProvider != null)
 			{
-				var proxyUrl = await _proxyProvider.GetProxyAsync();
+				var proxyUrl = await _proxyProvider.GetProxyAsync(/*CheckProxy*/);
 				httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
 				_logger.Info("UzService uses proxy " + proxyUrl);
 			}
@@ -315,6 +319,25 @@ namespace RM.Lib.UzTicket
 			_httpClient = httpClient;
 			_httpHandler = httpHandler;
 			_userAgent = userAgent;
+		}
+
+		private static async Task<bool> CheckProxy(string proxyUrl)
+		{
+			var handler = new HttpClientHandler { Proxy = new WebProxy(new Uri(proxyUrl)), AllowAutoRedirect = true };
+			var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(_requestTimeout) };
+
+			try
+			{
+				var req = new HttpRequestMessage(HttpMethod.Head, "https://booking.uz.gov.ua/ru");
+				req.Headers.UserAgent.ParseAdd(UserAgentSelector.GetRandomAgent());
+
+				var resp = await client.SendAsync(req);
+				return resp.IsSuccessStatusCode;
+			}
+			catch (Exception e)
+			{
+				return false;
+			}
 		}
 
 		private static void SetHeaders(HttpRequestHeaders headers, IDictionary<string, string> dict)
