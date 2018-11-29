@@ -108,27 +108,39 @@ namespace RM.Lib.Proxy
 				{
 					_settings = _settingsProvider.GetSettings().Proxy;
 
-					var client = new HttpClient();
-					var req = new HttpRequestMessage(HttpMethod.Post, _settings.SourceUrl) {Content = new FormUrlEncodedContent(_proxyRequestData)};
+					(proxies, index) = await GetProxies(_settings);
 
-					var resp = await client.SendAsync(req);
-
-					if (resp.IsSuccessStatusCode)
+					if (proxies != null)
 					{
-						var htmlDoc = new HtmlDocument();
-						htmlDoc.Load(await resp.Content.ReadAsStreamAsync());
-
-						var scriptNode = htmlDoc.DocumentNode.SelectSingleNode(_settings.ScriptPath);
-						var unpacked = ScriptUnpacker.Unpack(scriptNode.InnerText);
-						var calc = new Calculator(unpacked);
-
-						var nodes = htmlDoc.DocumentNode.SelectNodes(_settings.ProxyPath);
-						_proxies.AddRange(nodes.Select(n => ParseProxy(n.InnerText, calc, _settings)).Take(_maxProxies));
-						_currentIndex = 0;
+						_proxies.AddRange(proxies);
+						_currentIndex = index;
 						await SetDbProxies(_currentIndex, _proxies.ToArray());
 					}
 				}
 			}
+		}
+
+		private static async Task<(Proxy[], int)> GetProxies(IProxySettings settings)
+		{
+			var client = new HttpClient();
+			var req = new HttpRequestMessage(HttpMethod.Post, settings.SourceUrl) { Content = new FormUrlEncodedContent(_proxyRequestData) };
+
+			var resp = await client.SendAsync(req);
+
+			if (resp.IsSuccessStatusCode)
+			{
+				var htmlDoc = new HtmlDocument();
+				htmlDoc.Load(await resp.Content.ReadAsStreamAsync());
+
+				var scriptNode = htmlDoc.DocumentNode.SelectSingleNode(settings.ScriptPath);
+				var unpacked = ScriptUnpacker.Unpack(scriptNode.InnerText);
+				var calc = new Calculator(unpacked);
+
+				var nodes = htmlDoc.DocumentNode.SelectNodes(settings.ProxyPath);
+				return (nodes.Select(n => ParseProxy(n.InnerText, calc, settings)).Take(_maxProxies).ToArray(), 0);
+			}
+
+			return default;
 		}
 
 		private async Task<(Proxy[], int)> GetDbProxies()
@@ -183,7 +195,12 @@ namespace RM.Lib.Proxy
 
 		private static Task<bool> IsProxyValidAsync(Proxy proxy, Func<string, Task<bool>> validatorAsync)
 		{
-			return validatorAsync?.Invoke(proxy.ToString()) ?? DefaultProxyValidatorAsync(proxy);
+			return DefaultProxyValidatorAsync(proxy).Then(
+											t => t.Result
+													? validatorAsync == null ? Task.FromResult(true) : validatorAsync(proxy.ToString())
+													: Task.FromResult(false),
+											e => Task.FromResult(false)
+										);
 		}
 
 		private static async Task<bool> DefaultProxyValidatorAsync(Proxy proxy)

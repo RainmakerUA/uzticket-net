@@ -32,6 +32,27 @@ namespace RM.Lib.Utility
 			});
 		}
 
+		public static Task Then<T>(this T task, Func<T, Task> successFunc = null, Func<Exception, Task> failFunc = null) where T : Task
+		{
+			return task.ContinueWith(t =>
+			{
+				if (t.IsFaulted)
+				{
+					var exception = UnwrapAggregate(t.Exception);
+					if (failFunc != null)
+					{
+						return failFunc(exception);
+					}
+					else
+					{
+						throw exception;
+					}
+				}
+
+				return successFunc?.Invoke((T)t);
+			}).Unwrap();
+		}
+
 		public static Task<TRes> Then<T, TRes>(this T task, Func<T, TRes> successFunc = null, Func<Exception, TRes> failFunc = null) where T : Task
 		{
 			return task.ContinueWith(t =>
@@ -45,6 +66,30 @@ namespace RM.Lib.Utility
 				if (successFunc != null)
 				{
 					return Task.FromResult(successFunc((T)t));
+				}
+
+				if (t is Task<TRes> taskRes)
+				{
+					return taskRes;
+				}
+
+				throw new NotSupportedException($"Not supported default conversion from {typeof(T).FullName} to result type {typeof(TRes).FullName}");
+			}).Unwrap();
+		}
+
+		public static Task<TRes> Then<T, TRes>(this T task, Func<T, Task<TRes>> successFunc = null, Func<Exception, Task<TRes>> failFunc = null) where T : Task
+		{
+			return task.ContinueWith(t =>
+			{
+				if (t.IsFaulted)
+				{
+					var exception = UnwrapAggregate(t.Exception);
+					return failFunc != null ? failFunc(exception) : Task.FromException<TRes>(exception);
+				}
+
+				if (successFunc != null)
+				{
+					return successFunc((T)t);
 				}
 
 				if (t is Task<TRes> taskRes)

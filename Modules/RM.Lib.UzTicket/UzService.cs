@@ -311,7 +311,7 @@ namespace RM.Lib.UzTicket
 
 			if (_proxyProvider != null)
 			{
-				var proxyUrl = await _proxyProvider.GetProxyAsync(/*CheckProxy*/);
+				var proxyUrl = await _proxyProvider.GetProxyAsync(CheckProxy);
 				httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
 				_logger.Info("UzService uses proxy " + proxyUrl);
 			}
@@ -321,14 +321,19 @@ namespace RM.Lib.UzTicket
 			_userAgent = userAgent;
 		}
 
-		private static async Task<bool> CheckProxy(string proxyUrl)
+		private async Task<bool> CheckProxy(string proxyUrl)
 		{
+			var uri = new Uri(_baseUrl);
+			var builder = new UriBuilder(uri) { Path = String.Empty };
+
+			uri = builder.Uri;
+
 			var handler = new HttpClientHandler { Proxy = new WebProxy(new Uri(proxyUrl)), AllowAutoRedirect = true };
 			var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(_requestTimeout) };
 
 			try
 			{
-				var req = new HttpRequestMessage(HttpMethod.Head, "https://booking.uz.gov.ua/ru");
+				var req = new HttpRequestMessage(HttpMethod.Head, uri);
 				req.Headers.UserAgent.ParseAdd(UserAgentSelector.GetRandomAgent());
 
 				var resp = await client.SendAsync(req);
