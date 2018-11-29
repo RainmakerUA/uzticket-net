@@ -23,7 +23,7 @@ namespace RM.UzTicket.Data
 		public async Task<IPersistenceClient> GetClientAsync(string dataNamespace)
 		{
 			var builder = new RedisConnectionStringBuilder(_persistenceSettings.ConnectionString);
-			var redisClient = await _clientPool.CreateClientAsync(builder.EndPoint);
+			var redisClient = await _clientPool.CreateClientAsync(builder.EndPoint, serializer: new DataSerializer());
 
 			if (!redisClient.IsAuthenticated)
 			{

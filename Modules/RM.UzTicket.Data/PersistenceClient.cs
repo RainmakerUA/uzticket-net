@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using RedisBoost;
+using RM.Lib.Utility;
 using RM.UzTicket.Data.Contracts;
 
 namespace RM.UzTicket.Data
@@ -24,6 +25,20 @@ namespace RM.UzTicket.Data
 		{
 			_client.Dispose();
 			_disposed = true;
+		}
+
+		public Task<T> GetValueAsync<T>(string key)
+		{
+			CheckDisposed();
+
+			return _client.GetAsync(GetFullKey(_dataNamespace, key)).Then(t => t.Result.As<T>());
+		}
+
+		public Task SetValueAsync<T>(string key, T value)
+		{
+			CheckDisposed();
+
+			return _client.SetAsync(GetFullKey(_dataNamespace, key), value);
 		}
 
 		public async Task<T[]> GetListAsync<T>(string key, int start = 0, int stop = -1)
