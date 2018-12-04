@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -36,7 +37,7 @@ namespace RM.Lib.Utility
 		{
 			return task.ContinueWith(t =>
 			{
-				if (t.IsFaulted)
+				if (t.IsFaulted || t.IsCanceled)
 				{
 					var exception = UnwrapAggregate(t.Exception);
 					if (failFunc != null)
@@ -45,7 +46,7 @@ namespace RM.Lib.Utility
 					}
 					else
 					{
-						throw exception;
+						throw exception ?? new TaskCanceledException(t);
 					}
 				}
 
@@ -57,10 +58,12 @@ namespace RM.Lib.Utility
 		{
 			return task.ContinueWith(t =>
 			{
-				if (t.IsFaulted)
+				if (t.IsFaulted || t.IsCanceled)
 				{
 					var exception = UnwrapAggregate(t.Exception);
-					return failFunc != null ? Task.FromResult(failFunc(exception)) : Task.FromException<TRes>(exception);
+					return failFunc != null
+								? Task.FromResult(failFunc(exception))
+								: (exception != null ? Task.FromException<TRes>(exception) : Task.FromCanceled<TRes>(GetTaskCancellationToken(t)));
 				}
 
 				if (successFunc != null)
@@ -81,10 +84,12 @@ namespace RM.Lib.Utility
 		{
 			return task.ContinueWith(t =>
 			{
-				if (t.IsFaulted)
+				if (t.IsFaulted || t.IsCanceled)
 				{
 					var exception = UnwrapAggregate(t.Exception);
-					return failFunc != null ? failFunc(exception) : Task.FromException<TRes>(exception);
+					return failFunc != null
+							? failFunc(exception)
+							: (exception != null ? Task.FromException<TRes>(exception) : Task.FromCanceled<TRes>(GetTaskCancellationToken(t)));
 				}
 
 				if (successFunc != null)
@@ -104,6 +109,11 @@ namespace RM.Lib.Utility
 		private static Exception UnwrapAggregate(Exception ex)
 		{
 			return ex is AggregateException aggr ? aggr.Flatten().InnerException : ex;
+		}
+
+		private static CancellationToken GetTaskCancellationToken(Task task)
+		{
+			return (CancellationToken)typeof(Task).GetProperty("CancellationToken", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(task);
 		}
 	}
 }

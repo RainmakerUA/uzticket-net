@@ -48,14 +48,13 @@ namespace RM.Lib.UzTicket
 		{
 			if (!_isDisposed)
 			{
-				_httpClient.Dispose();
+				_httpClient?.Dispose();
 				_httpClient = null;
 
-				_httpHandler.Dispose();
+				_httpHandler?.Dispose();
 				_httpHandler = null;
 
 				_userAgent = null;
-
 				_isDisposed = true;
 			}
 		}
