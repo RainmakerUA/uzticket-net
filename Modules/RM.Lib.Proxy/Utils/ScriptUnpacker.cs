@@ -3,12 +3,11 @@ using System.Text.RegularExpressions;
 
 namespace RM.Lib.Proxy.Utils
 {
-                                  	internal static class ScriptUnpacker
+	internal static class ScriptUnpacker
 	{
 		private class Unbaser
 		{
 			private const string _alphabet62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-			//private const string _alphabet95 = "\u0020!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
 
 			private readonly int _base;
 
@@ -94,7 +93,7 @@ namespace RM.Lib.Proxy.Utils
 
 			var groups = match.Groups;
 			var split = Regex.Unescape(groups["split"].Value);
-			
+
 			return new Args(
 						Regex.Unescape(groups["arg1"].Value),
 						Regex.Unescape(groups["arg4"].Value).Split(split[0]),

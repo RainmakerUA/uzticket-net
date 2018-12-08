@@ -16,7 +16,7 @@ namespace RM.Lib.Utility
 		{
 			return task.ContinueWith(t =>
 			{
-				if (t.IsFaulted)
+				if (t.IsFaulted || t.IsCanceled)
 				{
 					var exception = UnwrapAggregate(t.Exception);
 					if (failFunc != null)
@@ -25,7 +25,7 @@ namespace RM.Lib.Utility
 					}
 					else
 					{
-						throw exception;
+						throw exception ?? new TaskCanceledException(t);
 					}
 				}
 

@@ -311,8 +311,16 @@ namespace RM.Lib.UzTicket
 			if (_proxyProvider != null)
 			{
 				var proxyUrl = await _proxyProvider.GetProxyAsync(CheckProxy);
-				httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
-				_logger.Info("UzService uses proxy " + proxyUrl);
+
+				if (!String.IsNullOrEmpty(proxyUrl))
+				{
+					httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
+					_logger.Info("UzService uses proxy " + proxyUrl);
+				}
+				else
+				{
+					_logger.Warning("Cannot obtain proxy, requesting unproxied");
+				}
 			}
 
 			_httpClient = httpClient;

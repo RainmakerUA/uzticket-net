@@ -44,6 +44,7 @@ namespace RM.Lib.Proxy
 			}
 		}
 
+		private const int _maxRetriesDefault = 10;
 		private const int _maxProxies = 50;
 
 		private const string _managerKey = "proxy-manager";
@@ -52,7 +53,7 @@ namespace RM.Lib.Proxy
 
 		private static readonly IDictionary<string, string> _proxyRequestData = new Dictionary<string, string>
 																					{
-																						["xpp"] = "1",
+																						["xpp"] = "2",
 																						["xf1"] = "1",
 																						["xf2"] = "1",
 																						["xf4"] = "0",
@@ -73,7 +74,10 @@ namespace RM.Lib.Proxy
 
 		public async Task<string> GetProxyAsync(Func<string, Task<bool>> proxyChecker = null)
 		{
-			while (_currentIndex >= _proxies.Count || !await IsProxyValidAsync(_proxies[_currentIndex], proxyChecker))
+			var numTries = 0;
+
+			while (numTries++ < _maxRetriesDefault
+					&& (_currentIndex >= _proxies.Count || !await IsProxyValidAsync(_proxies[_currentIndex], proxyChecker)))
 			{
 				if (_proxies.Count == 0)
 				{
@@ -84,6 +88,11 @@ namespace RM.Lib.Proxy
 				{
 					_currentIndex++;
 				}
+			}
+
+			if (_proxies.Count == 0)
+			{
+				return null;
 			}
 
 			await SetDbProxies(_currentIndex, null);
