@@ -1,11 +1,12 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using RedisBoost;
 using RM.UzTicket.Data.Contracts;
 using RM.UzTicket.Settings.Contracts;
 
 namespace RM.UzTicket.Data
 {
-	internal class PersistenceProvider : IPersistenceProvider
+	internal sealed class PersistenceProvider : IPersistenceProvider, IDisposable
 	{
 		private const string _baseNamespace = "uzticket";
 
@@ -18,6 +19,11 @@ namespace RM.UzTicket.Data
 			_settingProvider = settingProvider;
 			_persistenceSettings = _settingProvider.GetSettings().Persistence;
 			_clientPool = RedisClient.CreateClientsPool(4, 20 * 60 * 1000);
+		}
+
+		public void Dispose()
+		{
+			_clientPool?.Dispose();
 		}
 
 		public async Task<IPersistenceClient> GetClientAsync(string dataNamespace)

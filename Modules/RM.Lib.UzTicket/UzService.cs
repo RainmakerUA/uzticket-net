@@ -31,7 +31,7 @@ namespace RM.Lib.UzTicket
 
 		private HttpClientHandler _httpHandler;
 		private HttpClient _httpClient;
-		private string _userAgent;
+		private volatile string _userAgent;
 		private bool _isDisposed;
 
 		public UzService(string baseUrl = null, string sessionIdKey = null, IProxyProvider proxyProvider = null, ILog logger = null)
@@ -346,7 +346,7 @@ namespace RM.Lib.UzTicket
 				var resp = await client.SendAsync(req);
 				return resp.IsSuccessStatusCode;
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return false;
 			}
