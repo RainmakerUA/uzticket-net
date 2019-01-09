@@ -25,7 +25,7 @@ namespace RM.UzTicket.Telegram
 		private readonly ITelegramBotClient _client;
 		private readonly long? _masterChatID;
 
-		public TelegramBot(ISettingsProvider settingsProvider, IProxyProvider proxyProvider)
+		public TelegramBot(ISettingsProvider settingsProvider, IProxyProvider proxyProvider = null)
 		{
 			_settingsProvider = settingsProvider;
 			_proxyProvider = proxyProvider;

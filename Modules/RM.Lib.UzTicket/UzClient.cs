@@ -10,7 +10,7 @@ using RM.UzTicket.Settings.Contracts;
 
 namespace RM.Lib.UzTicket
 {
-	internal sealed class UzClient : IUzClient
+	internal sealed class UzClient : IUzClient, IDisposable
 	{
 		private readonly ISettingsProvider _settingsProvider;
 		private readonly IProxyProvider _proxyProvider;
@@ -33,6 +33,11 @@ namespace RM.Lib.UzTicket
 		{
 			add => _scanner.ScanEvent += value;
 			remove => _scanner.ScanEvent -= value;
+		}
+
+		private void OnHostStopping(object sender, EventArgs e)
+		{
+			_scanner.Stop();
 		}
 
 		public async Task<Station[]> GetStationsAsync(string name)
@@ -94,9 +99,9 @@ namespace RM.Lib.UzTicket
 			_scanner.Start();
 		}
 
-		private void OnHostStopping(object sender, EventArgs e)
+		public void Dispose()
 		{
-			_scanner.Stop();
+			_scanner?.Dispose();
 		}
 	}
 }

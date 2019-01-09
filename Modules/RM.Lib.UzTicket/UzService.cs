@@ -31,7 +31,7 @@ namespace RM.Lib.UzTicket
 
 		private HttpClientHandler _httpHandler;
 		private HttpClient _httpClient;
-		private string _userAgent;
+		private volatile string _userAgent;
 		private bool _isDisposed;
 
 		public UzService(string baseUrl = null, string sessionIdKey = null, IProxyProvider proxyProvider = null, ILog logger = null)
@@ -48,14 +48,13 @@ namespace RM.Lib.UzTicket
 		{
 			if (!_isDisposed)
 			{
-				_httpClient.Dispose();
+				_httpClient?.Dispose();
 				_httpClient = null;
 
-				_httpHandler.Dispose();
+				_httpHandler?.Dispose();
 				_httpHandler = null;
 
 				_userAgent = null;
-
 				_isDisposed = true;
 			}
 		}
@@ -312,8 +311,16 @@ namespace RM.Lib.UzTicket
 			if (_proxyProvider != null)
 			{
 				var proxyUrl = await _proxyProvider.GetProxyAsync(CheckProxy);
-				httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
-				_logger.Info("UzService uses proxy " + proxyUrl);
+
+				if (!String.IsNullOrEmpty(proxyUrl))
+				{
+					httpHandler.Proxy = new WebProxy(new Uri(proxyUrl));
+					_logger.Info("UzService uses proxy " + proxyUrl);
+				}
+				else
+				{
+					_logger.Warning("Cannot obtain proxy, requesting unproxied");
+				}
 			}
 
 			_httpClient = httpClient;
@@ -339,7 +346,7 @@ namespace RM.Lib.UzTicket
 				var resp = await client.SendAsync(req);
 				return resp.IsSuccessStatusCode;
 			}
-			catch (Exception e)
+			catch (Exception)
 			{
 				return false;
 			}
