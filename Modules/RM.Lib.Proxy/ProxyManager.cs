@@ -84,7 +84,6 @@ namespace RM.Lib.Proxy
 					await LoadProxiesAsync();
 				}
 				else
-
 				{
 					_currentIndex++;
 				}
