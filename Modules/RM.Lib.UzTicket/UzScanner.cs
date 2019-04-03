@@ -372,20 +372,16 @@ namespace RM.Lib.UzTicket
 
 									if (!String.IsNullOrEmpty(item.CoachType))
 									{
-										var coachType = FindCoachType(train, item.CoachType);
+										coachTypes = FindCoachTypes(train, item.CoachType);
 
-										if (coachType != null)
-										{
-											coachTypes = new[] {coachType};
-										}
-										else if (item.ExactCoachType)
+										if (coachTypes.Length == 0 && item.ExactCoachType)
 										{
 											HandleError(scanId, data, "No vacant coaches " + item.CoachType, false);
 											return;
 										}
 									}
 
-									if (coachTypes == null)
+									if (coachTypes == null || coachTypes.Length == 0)
 									{
 										coachTypes = train.CoachTypes;
 									}
@@ -454,9 +450,9 @@ namespace RM.Lib.UzTicket
 			return null;
 		}
 
-		private static CoachType FindCoachType(Train train, string coachType)
+		private static CoachType[] FindCoachTypes(Train train, string coachType)
 		{
-			return train.CoachTypes.FirstOrDefault(ct => ct.Letter == coachType);
+			return Array.FindAll(train.CoachTypes, ct => coachType.IndexOf(ct.Letter, StringComparison.InvariantCultureIgnoreCase) >= 0);
 		}
 	}
 }
