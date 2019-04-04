@@ -6,29 +6,35 @@ using System.Reflection;
 using System.Xml.Linq;
 using RM.Lib.Common.Contracts.Log;
 using RM.Lib.Hosting.Contracts.Environment;
+using StringLookup = RM.Lib.Utility.Lookup<string, string>;
 
 namespace RM.Lib.Hosting.Environment
 {
 	internal sealed class HostConfigReader
 	{
-		private const string _hostConfig = "host.config";
-		private const string _schemaUrn = "urn:rm/" + _hostConfig;
+		public const string HostConfig = "host.config";
+		public const string SchemaUrn = "urn:rm/" + HostConfig;
+
 		private const string _resNotFoundFormat = "Resource host.config not found in assembly {0}.";
 
 		private readonly ILog _log;
 		private readonly List<ConfigModule> _modules;
 		private readonly List<ConfigSection> _sections;
+        private readonly StringLookup _configElements;
 		
 		public HostConfigReader(ILog log)
 		{
 			_log = log;
 			_modules = new List<ConfigModule>();
 			_sections = new List<ConfigSection>();
+            _configElements = new StringLookup();
 		}
 
 		public IEnumerable<ConfigModule> Modules => _modules;
 
 		public IEnumerable<ConfigSection> Sections => _sections;
+
+        public ILookup<string, string> Configs => _configElements;
 
 		public bool ReadDefaultResource(bool throwIfUnsuccessful = true)
 		{
@@ -54,7 +60,7 @@ namespace RM.Lib.Hosting.Environment
 
 		public bool ReadDefaultFile(bool throwIfUnsuccessful = true)
 		{
-			var configs = new[] { _hostConfig, @"Properties\" + _hostConfig };
+			var configs = new[] { HostConfig, @"Properties\" + HostConfig };
 			var configDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) ?? @".\";
 
 			foreach (var configName in configs)
@@ -136,28 +142,51 @@ namespace RM.Lib.Hosting.Environment
 
 		private void LoadElements(XDocument doc)
 		{
-			foreach (var componentNode in doc.Root.Element(XName.Get("modules", _schemaUrn)).Elements(XName.Get("module", _schemaUrn)))
-			{
-				var element = new ConfigModule();
+            var root = doc.Root;
 
-				var attr = componentNode.Attribute("assembly");
-				element.Assembly = attr?.Value;
+            if (root == null)
+            {
+                return;
+            }
 
-				_modules.Add(element);
-			}
+            var moduleElement = root.Element(XName.Get("modules", SchemaUrn));
 
-			foreach (var sectionNode in doc.Root.Element(XName.Get("sections", _schemaUrn)).Elements(XName.Get("section", _schemaUrn)))
-			{
-				var element = new ConfigSection();
+            if (moduleElement != null)
+            {
+                foreach (var componentNode in moduleElement.Elements(XName.Get("module", SchemaUrn)))
+                {
 
-				var attr = sectionNode.Attribute("section");
-				element.SectionType = attr?.Value;
+                    var attr = componentNode.Attribute("assembly");
+                    var element = new ConfigModule(attr?.Value);
 
-				attr = sectionNode.Attribute("provider");
-				element.ProviderType = attr?.Value;
+                    _modules.Add(element);
+                }
+            }
 
-				_sections.Add(element);
-			}
+            var sectionElement = root.Element(XName.Get("sections", SchemaUrn));
+
+            if (sectionElement != null)
+            {
+                foreach (var sectionNode in sectionElement.Elements(XName.Get("section", SchemaUrn)))
+                {
+                    var nameAttr = sectionNode.Attribute("name");
+                    var typeAttr = sectionNode.Attribute("type");
+
+                    var element = new ConfigSection(nameAttr?.Value, typeAttr?.Value);
+
+                    _sections.Add(element);
+                }
+            }
+
+            var configElement = root.Element(XName.Get("config", SchemaUrn));
+
+            if (configElement != null)
+            {
+                foreach (var element in configElement.Elements())
+                {
+                    _configElements.Add(element.Name.LocalName, element.ToString(SaveOptions.DisableFormatting));
+                }
+            }
 		}
 	}
 }

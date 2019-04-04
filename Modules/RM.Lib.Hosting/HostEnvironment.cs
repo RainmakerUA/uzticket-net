@@ -9,6 +9,8 @@ namespace RM.Lib.Hosting
 
 		public IDependencyContainer Container { get; }
 
+        public ConfigurationResolver ConfigResolver { get; set; }
+
 		public HostEnvironment()
 		{
 			var container = new DependencyContainer();

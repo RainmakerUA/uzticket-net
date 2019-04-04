@@ -122,7 +122,7 @@ namespace RM.Lib.Hosting
 
 			if (env.Container is DependencyContainer depContainer)
 			{
-				depContainer.InitializeProvider();
+				depContainer.InitializeProvider(env.ConfigResolver);
 			}
 		}
 

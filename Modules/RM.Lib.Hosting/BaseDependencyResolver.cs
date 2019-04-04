@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using RM.Lib.Hosting.Contracts;
+using RM.Lib.Hosting.Contracts.Config;
 
 namespace RM.Lib.Hosting
 {
-	public class BaseDependencyResolver : IDependencyResolver
+	internal class BaseDependencyResolver : IDependencyResolver
 	{
 		private readonly IServiceScope _scope;
-		private readonly IList<Action<IDependencyResolver>> _moduleInitializers;
+		private IList<ModuleInitializer> _moduleInitializers;
+
 		protected IServiceProvider Provider;
 
 		private BaseDependencyResolver(IServiceScope scope) : this(scope?.ServiceProvider)
@@ -20,7 +22,7 @@ namespace RM.Lib.Hosting
 		{
 			if (provider == null)
 			{
-				_moduleInitializers = new List<Action<IDependencyResolver>>();
+				_moduleInitializers = new List<ModuleInitializer>();
 			}
 
 			Provider = provider;
@@ -32,16 +34,21 @@ namespace RM.Lib.Hosting
 		}
 
 		public void RegisterModuleInitializer(Action<IDependencyResolver> initializer)
-		{
-			if (_moduleInitializers == null)
-			{
-				throw new InvalidOperationException("Cannot register module initializer in child resolver or after initialization have taken place!");
-			}
-
-			_moduleInitializers.Add(initializer ?? throw new ArgumentNullException(nameof(initializer)));
+        {
+            AddModuleInitializer(initializer, null, false);
 		}
 
-		public T Get<T>() => Provider.GetRequiredService<T>();
+        public void RegisterModuleInitializer<T>(Action<IDependencyResolver, T> initializer) where T : IConfigurationSection
+        {
+            AddModuleInitializer(initializer, typeof(T), false);
+        }
+
+        public void RegisterModuleInitializer<T>(Action<IDependencyResolver, T[]> initializer) where T : IConfigurationSection
+        {
+            AddModuleInitializer(initializer, typeof(T), true);
+        }
+
+        public T Get<T>() => Provider.GetRequiredService<T>();
 
 		public IEnumerable<T> GetAll<T>() => Provider.GetServices<T>();
 
@@ -107,17 +114,40 @@ namespace RM.Lib.Hosting
 			}
 		}
 
-		protected void InitializeModules()
+		protected void InitializeModules(ConfigurationResolver configResolver)
 		{
 			if (_moduleInitializers != null)
 			{
-				foreach (var initializer in _moduleInitializers)
-				{
-					initializer?.Invoke(this);
+				foreach (var (initDelegate, type, isArray) in _moduleInitializers)
+                {
+                    if (initDelegate != null)
+                    {
+                        if (type == null)
+                        {
+                            initDelegate.DynamicInvoke(this);
+                        }
+                        else
+                        {
+                            var sectionArg = isArray ? configResolver.GetMultipleSections(type) : configResolver.GetSingleSection(type);
+                            initDelegate.DynamicInvoke(this, sectionArg);
+                        }
+                    }
 				}
-				// Parallel version
-				// Task.WaitAll(_moduleInitializers.Select(init => Task.Run(() => init?.Invoke(this))).ToArray());
-			}
+
+                _moduleInitializers = null;
+                // Parallel version
+                // Task.WaitAll(_moduleInitializers.Select(init => Task.Run(() => init?.Invoke(this))).ToArray());
+            }
 		}
+
+        private void AddModuleInitializer(Delegate initDelegate, Type sectionType, bool isArray)
+        {
+            if (_moduleInitializers == null)
+            {
+                throw new InvalidOperationException("Cannot register module initializer in child resolver or after initialization have taken place!");
+            }
+
+            _moduleInitializers.Add(new ModuleInitializer(initDelegate, sectionType, isArray));
+        }
 	}
 }
