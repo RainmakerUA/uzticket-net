@@ -196,7 +196,7 @@ namespace RM.Lib.UzTicket
 						break;
 
 					case ScanEventType.Success:
-						header = successEmo + $"<b>Scan successful: {data.Attempts} attempts";
+						header = successEmo + $"<b>Scan successful</b>: {data.Attempts} attempts";
 						footer = "Session ID: " + data.StateDescription;
 						break;
 
@@ -386,11 +386,11 @@ namespace RM.Lib.UzTicket
 										coachTypes = train.CoachTypes;
 									}
 
-									var sessionId = await BookAsync(train, coachTypes, item.FirstName, item.LastName);
+									var (sessionId, coach, seat) = await BookAsync(train, coachTypes, item.FirstName, item.LastName);
 
 									if (!String.IsNullOrEmpty(sessionId))
 									{
-										var msg = $"Reserved ticket for [{item.ScanSource}]: {sessionId}";
+										var msg = $"Reserved ticket for [{item.ScanSource}]:\nTrain: {train.Number} Coach: {coach.Number}-{coach.Type} Seat: {seat.Number} Price: {(seat.Price??0)/100m:##.00 UAH}\n{sessionId}";
 										_log.Info(msg);
 										data.State = ScanEventType.Success;
 										data.StateDescription = sessionId;
@@ -416,7 +416,7 @@ namespace RM.Lib.UzTicket
 			}
 		}
 
-		private async Task<string> BookAsync(Train train, CoachType[] coachTypes, string firstName, string lastName)
+		private async Task<(string,  Coach, Seat)> BookAsync(Train train, CoachType[] coachTypes, string firstName, string lastName)
 		{
 			using (var svc = CreateService())
 			{
@@ -435,19 +435,18 @@ namespace RM.Lib.UzTicket
 							try
 							{
 								await svc.BookSeatAsync(train, coach, seat, new Passenger { FirstName = firstName, LastName = lastName, Bedding = coach.HasBedding });
+							    return (svc.GetSessionId(), coach, seat);
 							}
 							catch (ResponseException)
 							{
-								continue;
-							}
-
-							return svc.GetSessionId();
+                                // Just try next seat
+                            }
 						}
 					}
 				}
 			}
 
-			return null;
+			return default;
 		}
 
 		private static CoachType[] FindCoachTypes(Train train, string coachType)
