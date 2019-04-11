@@ -6,7 +6,7 @@ namespace RM.UzTicket.Settings.Contracts
         
         string SessionCookie { get; }
 
-		int? ScanDelay { get; }
+		double? ScanDelay { get; }
 
 		string Temp { get; }
     }

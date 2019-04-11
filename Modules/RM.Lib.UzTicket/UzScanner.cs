@@ -56,12 +56,12 @@ namespace RM.Lib.UzTicket
 
 		private const int _errorsToFail = 5; // TODO: Settings
 		private const int _initialDelay = 10;
-		private const int _defaultDelay = 10 * 60;
+		private const int _defaultDelay = 15 * 60 + 30;
 
 		private readonly IUzSettings _settings;
 		private readonly ILog _log;
 		private readonly Func<UzService> _serviceFactory;
-		private readonly int _delay;
+		private readonly TimeSpan _delay;
 		private readonly IDictionary<string, ScanData> _scanStates;
 		
 		private CancellationTokenSource _cancelTokenSource;
@@ -74,7 +74,7 @@ namespace RM.Lib.UzTicket
 			_log = log;
 			_serviceFactory = serviceFactory;
 
-			_delay = _settings.ScanDelay * 60 ?? _defaultDelay;
+			_delay = _settings.ScanDelay.HasValue ? TimeSpan.FromMinutes(_settings.ScanDelay.Value) : TimeSpan.FromSeconds(_defaultDelay);
 			_scanStates = new ConcurrentDictionary<string, ScanData>();
 		}
 
@@ -291,7 +291,7 @@ namespace RM.Lib.UzTicket
 					Task.WhenAll(_scanStates.Select(kv => GetScanItemTask(service, kv))).Wait(_cancelToken);
 				}
 
-				isRunning = _cancelToken.WaitedOrCancelled(TimeSpan.FromSeconds(_delay));
+				isRunning = _cancelToken.WaitedOrCancelled(_delay);
 			}
 
 			_log.Debug("Run() end");
@@ -299,7 +299,7 @@ namespace RM.Lib.UzTicket
 			Task GetScanItemTask(UzService service, KeyValuePair<string, ScanData> statePair)
 			{
 				return ScanAsync(service, statePair.Key, statePair.Value)
-						.Then(failFunc: exc => HandleError(statePair.Key, statePair.Value, exc.Message, true));
+						.Then(failFunc: exc => HandleError(statePair.Key, statePair.Value, exc?.Message, true));
 			}
 		}
 
@@ -311,6 +311,12 @@ namespace RM.Lib.UzTicket
 		private void HandleError(string scanId, ScanData data, string error, bool severe)
 		{
 			const string itemFailed = "Item is failed: scanning skipped";
+
+			if (String.IsNullOrEmpty(error))
+			{
+				error = "Task was cancelled";
+				severe = false;
+			}
 
 			if (severe)
 			{
