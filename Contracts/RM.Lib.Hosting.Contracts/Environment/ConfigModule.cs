@@ -3,6 +3,11 @@ namespace RM.Lib.Hosting.Contracts.Environment
 {
 	public sealed class ConfigModule
 	{
-		public string Assembly { get; set; }
+        public ConfigModule(string assembly)
+        {
+            Assembly = assembly;
+        }
+
+		public string Assembly { get; }
 	}
 }

@@ -41,7 +41,7 @@ namespace RM.UzTicket.Settings
 		
 		public string SessionCookie { get; private set; }
 
-		public int? ScanDelay { get; private set; }
+		public double? ScanDelay { get; private set; }
 
 		public string Temp { get; private set; }
 
@@ -76,7 +76,7 @@ namespace RM.UzTicket.Settings
 		{
 			BaseUrl = baseUrl;
 			SessionCookie = cookie;
-			ScanDelay = Int32.TryParse(scanDelay, out var delay) ? delay : new int?();
+			ScanDelay = Double.TryParse(scanDelay, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var delay) ? delay : new double?();
 			Temp = temp;
 
 			return this;

@@ -13,18 +13,20 @@ namespace RM.Lib.Hosting
 {
 	public class DefaultHostInitializer : IHostInitializer
 	{
+		private readonly ILog _logger;
+
 		private Stream _configStream;
 
-		private ILog _logger => LogFactory.GetLog();
-
 		public DefaultHostInitializer()
-		{
-		}
+        {
+            _logger = LogFactory.GetLog();
+        }
 
 		public DefaultHostInitializer(Stream configStream)
-		{
-			_configStream = configStream ?? throw new ArgumentNullException(nameof(configStream));
-		}
+        {
+            _configStream = configStream ?? throw new ArgumentNullException(nameof(configStream));
+            _logger = LogFactory.GetLog();
+        }
 
 		public void Initialize(IHostEnvironment environment)
 		{
@@ -51,6 +53,11 @@ namespace RM.Lib.Hosting
 			InitializeModules(environment, reader.Modules);
 			InitializeSections(environment, reader.Sections);
 			InitializeOptions(environment);
+
+            if (environment is HostEnvironment hostEnv)
+            {
+                hostEnv.ConfigResolver = new ConfigurationResolver(reader.Sections, reader.Configs);
+            }
 		}
 
 		private void InitializeCoreType(IHostEnvironment environment)

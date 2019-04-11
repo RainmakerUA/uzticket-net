@@ -15,21 +15,21 @@ namespace RM.Lib.Hosting
 	internal sealed class DependencyContainer : BaseDependencyResolver, IDependencyContainer
 	{
 		private readonly IServiceCollection _services;
-		
-		private ILog _log => LogFactory.GetLog();
+		private readonly ILog _log;
 
 		public DependencyContainer()
 		{
 			_services = new ServiceCollection();
+            _log = LogFactory.GetLog();
 
-			_services.AddSingleton<IDependencyResolver>(this);
+            _services.AddSingleton<IDependencyResolver>(this);
 			_services.AddSingleton<IDependencyContainer>(this);
 		}
 
-		public void InitializeProvider()
+		public void InitializeProvider(ConfigurationResolver configResolver)
 		{
 			Provider = _services.BuildServiceProvider(true);
-			InitializeModules();
+			InitializeModules(configResolver);
 		}
 
 		#region IDependencyContainer

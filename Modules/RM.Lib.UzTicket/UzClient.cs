@@ -65,8 +65,11 @@ namespace RM.Lib.UzTicket
 		{
 			_logger.Info("Resetting scanning...");
 			_scanner.Reset();
+
 			await _scanner.LoadScans();
+
 			await Task.Delay(TimeSpan.FromSeconds(1));
+
 			_scanner.Start();
 			_logger.Info("Scanning restarted...");
 		}
