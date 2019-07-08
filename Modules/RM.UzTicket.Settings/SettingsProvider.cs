@@ -46,7 +46,7 @@ namespace RM.UzTicket.Settings
 		{
 			foreach (var varName in _varNames)
 			{
-				_variables.Add(varName, Environment.GetEnvironmentVariable(varName));
+				_variables.Add(varName, GetEnvString(varName));
 			}
 		}
 
@@ -80,11 +80,6 @@ namespace RM.UzTicket.Settings
 					.SetUzSettings(GetVariable("UZBASEURL"), GetVariable("UZSESSIONCOOKIE"), GetVariable("UZSCANDELAY"), GetVariable("TEMP_SCAN"));
 		}
 
-		private string GetVariable(string name)
-		{
-			return _variables.TryGetValue(_varPrefix + name, out var value) ? value : null;
-		}
-
 		public static SettingsProvider Load()
 		{
 #if DEBUG
@@ -96,6 +91,31 @@ namespace RM.UzTicket.Settings
 			}
 #endif
 			return new SettingsProvider();
+		}
+
+		private string GetVariable(string name)
+		{
+			return _variables.TryGetValue(_varPrefix + name, out var value) ? value : null;
+		}
+
+		private static string GetEnvString(string name)
+		{
+			const char quote = '"';
+			var value = Environment.GetEnvironmentVariable(name);
+
+			if (!String.IsNullOrEmpty(value))
+			{
+				var valueLength = value.Length;
+
+				if (valueLength > 2 && value[0] == quote && value[valueLength - 1] == quote)
+				{
+					value = value.Substring(1, valueLength - 2);
+				}
+
+				return value;
+			}
+
+			return String.Empty;
 		}
 	}
 }
