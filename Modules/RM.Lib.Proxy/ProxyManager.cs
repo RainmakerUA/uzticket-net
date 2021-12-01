@@ -204,7 +204,7 @@ namespace RM.Lib.Proxy
 		private static Task<bool> IsProxyValidAsync(Proxy proxy, Func<string, Task<bool>> validatorAsync)
 		{
 			return DefaultProxyValidatorAsync(proxy).Then(
-											t => t.Result
+											result => result
 													? validatorAsync == null ? Task.FromResult(true) : validatorAsync(proxy.ToString())
 													: Task.FromResult(false),
 											e => Task.FromResult(false)

@@ -1,4 +1,4 @@
-﻿namespace RM.UzTicket.Lib.Exceptions
+﻿namespace RM.Lib.UzTicket.Exceptions
 {
 	public class BadRequestException : HttpException
 	{

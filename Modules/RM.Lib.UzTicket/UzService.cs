@@ -11,9 +11,9 @@ using RM.Lib.Common.Contracts.Log;
 using RM.Lib.Proxy.Contracts;
 using RM.Lib.Utility;
 using RM.Lib.UzTicket.Contracts.DataContracts;
+using RM.Lib.UzTicket.Exceptions;
 using RM.Lib.UzTicket.Model;
 using RM.Lib.UzTicket.Utils;
-using RM.UzTicket.Lib.Exceptions;
 
 namespace RM.Lib.UzTicket
 {
@@ -25,6 +25,7 @@ namespace RM.Lib.UzTicket
 
 		private readonly string _baseUrl;
 		private readonly string _sessionIdKey;
+		private readonly string _sessionID;
 		private readonly IProxyProvider _proxyProvider;
 		private readonly ILog _logger;
 		private readonly object _httpInitLock;
@@ -32,12 +33,14 @@ namespace RM.Lib.UzTicket
 		private HttpClientHandler _httpHandler;
 		private HttpClient _httpClient;
 		private volatile string _userAgent;
+		private volatile string _captchaResult;
 		private bool _isDisposed;
 
-		public UzService(string baseUrl = null, string sessionIdKey = null, IProxyProvider proxyProvider = null, ILog logger = null)
+		public UzService(string baseUrl = null, string sessionIdKey = null, string sessionID = null, IProxyProvider proxyProvider = null, ILog logger = null)
 		{
-			_baseUrl = baseUrl.OrDefault("https://booking.uz.gov.ua/ru");
+			_baseUrl = baseUrl.OrDefault("https://booking.uz.gov.ua");
 			_sessionIdKey = sessionIdKey.OrDefault(_sessionIdKeyDefault);
+			_sessionID = sessionID;
 			_proxyProvider = proxyProvider;
 			_logger = logger;
 
@@ -65,6 +68,17 @@ namespace RM.Lib.UzTicket
 			return value != null ? _sessionIdKey + "=" + value : null;
 		}
 
+		public Task<(string type, byte[] data)> GetCaptchaImage()
+		{
+			return GetContentAsync("captcha/", HttpMethod.Get, null, null)
+					.Then(content => (Task.FromResult(content.Headers.ContentType.MediaType), content.ReadAsByteArrayAsync()).WhenAll());
+		}
+
+		public void SetCaptchaResult(string captcha)
+		{
+			_captchaResult = captcha;
+		}
+
 		public Task<Station[]> SearchStationAsync(string name)
 		{
 			var path = $"train_search/station/?term={name}";
@@ -73,7 +87,7 @@ namespace RM.Lib.UzTicket
 
 		public Task<Station> FetchFirstStationAsync(string name)
 		{
-			return SearchStationAsync(name).Then(t => t.Result.FirstOrDefault());
+			return SearchStationAsync(name).Then(stations => stations.FirstOrDefault());
 		}
 
 		public Task<Train[]> ListTrainsAsync(DateTime date, Station source, Station destination)
@@ -94,7 +108,7 @@ namespace RM.Lib.UzTicket
 		public Task<Train> FetchTrainAsync(DateTime date, Station source, Station destination, string trainNumber)
 		{
 			return ListTrainsAsync(date, source, destination).Then(
-																t => t.Result.GetByNumber(trainNumber),
+																trains => trains.GetByNumber(trainNumber),
 																ex => ex is ResponseException ? (Train)null : throw ex
 															);
 		}
@@ -112,7 +126,7 @@ namespace RM.Lib.UzTicket
 		public Task<IReadOnlyDictionary<string, int[]>> ListSeatsAsync(Train train, Coach coach)
 		{
 			return GetJsonAsync("train_wagon/", data: new IPersistable[] { train, coach }.ToRequestDictionary(), jsonKey: "places")
-					.Then(t => ParseSeats(t.Result), ex => ex is ResponseException ? (IReadOnlyDictionary<string, int[]>)null : throw ex);
+					.Then(ParseSeats, ex => ex is ResponseException ? (IReadOnlyDictionary<string, int[]>)null : throw ex);
 		}
 
 		public Task<dynamic> BookSeatAsync(Train train, Coach coach, Seat seat, Passenger passenger)
@@ -129,7 +143,7 @@ namespace RM.Lib.UzTicket
 				data[$"places[0][{key}]"] = place[key];
 			}
 
-			return GetJsonAsync("cart/add/", data: data).Then(t => (dynamic)(t.Result as JObject));
+			return GetJsonAsync("cart/add/", data: data).Then(json => (dynamic)(json as JObject));
 		}
 
 		/* Alternative booking request w/o places
@@ -160,7 +174,7 @@ namespace RM.Lib.UzTicket
 
 		public Task<Route> GetSelectedTrainRouteAsync(Train train)
 		{
-			return GetTrainRoutesAsync(new RouteData { Train = train }).Then(t => t.Result.FirstOrDefault());
+			return GetTrainRoutesAsync(new RouteData { Train = train }).Then(routes => routes.FirstOrDefault());
 		}
 
 		public Task<Route[]> GetTrainRoutesAsync(params RouteData[] routes)
@@ -188,9 +202,9 @@ namespace RM.Lib.UzTicket
 			};
 		}
 
-		private async Task<string> GetStringAsync(string path, HttpMethod method,
-													IDictionary<string, string> headers,
-													IDictionary<string, string> data)
+		private async Task<HttpContent> GetContentAsync(string path, HttpMethod method,
+														IDictionary<string, string> headers,
+														IDictionary<string, string> data)
 		{
 			var url = path;
 			var req = new HttpRequestMessage(method ?? HttpMethod.Post, url);
@@ -208,6 +222,12 @@ namespace RM.Lib.UzTicket
 
 			if (data != null && data.Count > 0)
 			{
+				if (!String.IsNullOrEmpty(_captchaResult))
+				{
+					data["captcha"] = _captchaResult;
+					_captchaResult = null;
+				}
+
 				req.Content = new FormUrlEncodedContent(data);
 			}
 
@@ -234,7 +254,14 @@ namespace RM.Lib.UzTicket
 				throw new HttpException((int)resp.StatusCode, null);
 			}
 
-			return await resp.Content.ReadAsStringAsync();
+			return resp.Content;
+		}
+
+		private Task<string> GetStringAsync(string path, HttpMethod method,
+													IDictionary<string, string> headers,
+													IDictionary<string, string> data)
+		{
+			return GetContentAsync(path, method, headers, data).Then(content => content.ReadAsStringAsync());
 		}
 
 		private async Task<JToken> GetJsonAsync(string path, HttpMethod method = null,
@@ -262,8 +289,12 @@ namespace RM.Lib.UzTicket
 				string message;
 				var value = jObj[_dataKey];
 
-
-				if (value is JObject valueObj)
+				if (jObj.ContainsKey("captcha"))
+				{
+					message = (string)value ?? "CAPTCHA is required!";
+					throw new UpgradeRequiredException(message, UpgradeKind.Captcha, str);
+				}
+				else if (value is JObject valueObj)
 				{
 					if (valueObj.TryGetValue("errors", out var errorsArray))
 					{
@@ -295,7 +326,7 @@ namespace RM.Lib.UzTicket
 											IDictionary<string, string> data = null,
 											string jsonKey = null)
 		{
-			return GetJsonAsync(path, method, headers, data, jsonKey).Then(t => t.Result.Deserialize<T>());
+			return GetJsonAsync(path, method, headers, data, jsonKey).Then(json => json.Deserialize<T>());
 		}
 
 		private async Task InitializeHttpClient()
@@ -307,6 +338,11 @@ namespace RM.Lib.UzTicket
 				BaseAddress = new Uri(_baseUrl),
 				Timeout = TimeSpan.FromSeconds(_requestTimeout)
 			};
+
+			if (!String.IsNullOrEmpty(_sessionID))
+			{
+				httpHandler.CookieContainer.Add(new Uri(_baseUrl), new Cookie(_sessionIdKey, _sessionID));
+			}
 
 			if (_proxyProvider != null)
 			{

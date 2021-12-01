@@ -31,7 +31,7 @@ namespace RM.UzTicket.Data
 		{
 			CheckDisposed();
 
-			return _client.GetAsync(GetFullKey(_dataNamespace, key)).Then(t => t.Result.As<T>());
+			return _client.GetAsync(GetFullKey(_dataNamespace, key)).Then(bulk => bulk.As<T>());
 		}
 
 		public Task SetValueAsync<T>(string key, T value)

@@ -42,7 +42,7 @@ namespace RM.Lib.UzTicket
 
 		public async Task<Station[]> GetStationsAsync(string name)
 		{
-			using (var svc = CreateService())
+			using (var svc = CreateService(null))
 			{
 				return await svc.SearchStationAsync(name);
 			}
@@ -50,7 +50,7 @@ namespace RM.Lib.UzTicket
 
 	    public async Task<Station> GetFirstStationAsync(string name)
 	    {
-		    using (var svc = CreateService())
+		    using (var svc = CreateService(null))
 		    {
 			    return await svc.FetchFirstStationAsync(name);
 		    }
@@ -92,9 +92,9 @@ namespace RM.Lib.UzTicket
 			uzClient._scanner.LoadScans().Wait();
 		}
 
-		private UzService CreateService()
+		private UzService CreateService(string sessionID)
 		{
-			return new UzService(_settings.BaseUrl, _settings.SessionCookie, _proxyProvider, LogFactory.GetLog(nameof(UzService)));
+			return new UzService(_settings.BaseUrl, _settings.SessionCookie, sessionID, _proxyProvider, LogFactory.GetLog(nameof(UzService)));
 		}
 
 		private void OnHostStarted(object sender, EventArgs e)

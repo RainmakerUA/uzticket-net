@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using RM.Lib.Hosting.Contracts;
+using RM.Lib.Utility;
 using RM.Lib.UzTicket.Contracts;
 using RM.Lib.UzTicket.Contracts.DataContracts;
-using RM.UzTicket.Data;
-using RM.UzTicket.Settings;
 using RM.UzTicket.Telegram.Contracts;
 
 namespace RM.UzTicket.Bot
@@ -56,8 +56,22 @@ namespace RM.UzTicket.Bot
 
 			uzClient.ScanEvent += (o, e) =>
 			{
-				var header = _headers.TryGetValue(e.Type, out var scanHeader) ? scanHeader : null;
-				teleClient.SendMessageAsync(e.CallbackID ?? 0, header == null ? e.Message : header + "\n" + e.Message);
+				if (e is UpgradeScanEventArgs upgradeArgs && upgradeArgs.Kind == UpgradeKind.Captcha)
+				{
+					try
+					{
+						upgradeArgs.ResponseTask = GetCaptchaResponse(teleClient, upgradeArgs.CallbackID ?? 0, upgradeArgs.DataType, upgradeArgs.Data, upgradeArgs.Message);
+					}
+					catch (TaskCanceledException)
+					{
+						// do not fill upgradeArgs.Response
+					}
+				}
+				else
+				{
+					var header = _headers.TryGetValue(e.Type, out var scanHeader) ? scanHeader : null;
+					teleClient.SendMessageAsync(e.CallbackID ?? 0, header == null ? e.Message : header + "\n" + e.Message);
+				}
 			};
 
 			teleClient.Command += async (o, e) =>
@@ -79,6 +93,35 @@ namespace RM.UzTicket.Bot
 		private static Task SendScanStatus(ITelegramBot telebot, long sendTo, string[] statuses)
 		{
 			return telebot.SendMessageAsync(sendTo, statuses != null && statuses.Length > 0 ? String.Join("\n\n", statuses) : "You do not have any scans!");
+		}
+
+		private static Task<string> GetCaptchaResponse(ITelegramBot bot, long id, string mimeType, byte[] data, string title)
+		{
+			EventHandler<MessageEventArgs> onMessage = null;
+			var tcs = new TaskCompletionSource<string>();
+			var cs = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+			var token = cs.Token;
+			var reg = token.Register(
+						() => 
+							{
+								tcs.TrySetCanceled(token);
+								bot.Message -= onMessage;
+							},
+						false
+					);
+
+			onMessage = (sender, e) =>
+			{
+				var handler = onMessage;
+				bot.Message -= handler;
+				reg.Dispose();
+
+				tcs.SetResult(e.Message);
+			};
+
+			bot.Message += onMessage;
+			
+			return bot.SendImageAsync(id, mimeType, data, title).Then(msgID => tcs.Task);
 		}
 	}
 }

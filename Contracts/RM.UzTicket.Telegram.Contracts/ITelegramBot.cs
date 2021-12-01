@@ -13,9 +13,11 @@ namespace RM.UzTicket.Telegram.Contracts
 
 		event EventHandler<ErrorEventArgs> Error;
 
-		Task SendMessageAsync(long id, string message);
+		Task<int> SendMessageAsync(long id, string message);
 
-		Task SendMasterMessageAsync(string message);
+		Task<int> SendImageAsync(long id, string mimeType, byte[] data, string title);
+
+		Task<int> SendMasterMessageAsync(string message);
 
 		Task SendTypingAsync(long id);
 	}

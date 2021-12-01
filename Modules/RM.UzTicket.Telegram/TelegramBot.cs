@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using RM.Lib.Common.Contracts.Log;
 using RM.Lib.Hosting.Contracts;
@@ -12,6 +13,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using BotMessageEventArgs = Telegram.Bot.Args.MessageEventArgs;
+using ErrorEventArgs = RM.UzTicket.Telegram.Contracts.ErrorEventArgs;
 using MessageEventArgs = RM.UzTicket.Telegram.Contracts.MessageEventArgs;
 
 namespace RM.UzTicket.Telegram
@@ -50,16 +52,30 @@ namespace RM.UzTicket.Telegram
 
 		public event EventHandler<ErrorEventArgs> Error;
 
-		public Task SendMessageAsync(long id, string message)
+		public Task<int> SendMessageAsync(long id, string message)
 		{
 			return id == 0
 						? SendMasterMessageAsync(message)
-						: _client.SendTextMessageAsync(id, message, ParseMode.Html);
+						: _client.SendTextMessageAsync(id, message, ParseMode.Html).Then(msg => msg.MessageId);
 		}
 
-		public Task SendMasterMessageAsync(string message)
+		public Task<int> SendImageAsync(long id, string mimeType, byte[] data, string title)
 		{
-			return _masterChatID.HasValue ? SendMessageAsync(_masterChatID.Value, message) : Task.CompletedTask;
+			if (id == 0)
+			{
+				id = _masterChatID ?? 0;
+			}
+
+			var mimeSplit = mimeType.Split('/');
+			var fileExt = mimeSplit.Length >= 2 ? mimeSplit[1] : "gif";
+			var stream = new MemoryStream(data);
+
+			return _client.SendPhotoAsync(id, new InputMedia(stream, "img." + fileExt), title).Then(msg => msg.MessageId);
+		}
+
+		public Task<int> SendMasterMessageAsync(string message)
+		{
+			return _masterChatID.HasValue ? SendMessageAsync(_masterChatID.Value, message) : Task.FromResult(0);
 		}
 
 		public Task SendTypingAsync(long id)

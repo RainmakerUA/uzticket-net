@@ -2,7 +2,7 @@
 
 namespace RM.Lib.UzTicket.Contracts.DataContracts
 {
-	public sealed class ScanEventArgs : EventArgs
+	public class ScanEventArgs : EventArgs
 	{
 
 		public ScanEventArgs(long? callbackID, ScanEventType type, string message)

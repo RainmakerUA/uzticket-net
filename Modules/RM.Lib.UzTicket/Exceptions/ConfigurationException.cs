@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace RM.UzTicket.Lib.Exceptions
+namespace RM.Lib.UzTicket.Exceptions
 {
 	public class ConfigurationException : UzException
 	{

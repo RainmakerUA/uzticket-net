@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 using RM.Lib.Common.Contracts.Log;
 using RM.Lib.Utility;
 using RM.Lib.UzTicket.Contracts.DataContracts;
+using RM.Lib.UzTicket.Exceptions;
 using RM.Lib.UzTicket.Model;
 using RM.Lib.UzTicket.Utils;
-using RM.UzTicket.Lib.Exceptions;
 using RM.UzTicket.Settings.Contracts;
 
 namespace RM.Lib.UzTicket
@@ -60,15 +60,16 @@ namespace RM.Lib.UzTicket
 
 		private readonly IUzSettings _settings;
 		private readonly ILog _log;
-		private readonly Func<UzService> _serviceFactory;
+		private readonly Func<string, UzService> _serviceFactory;
 		private readonly TimeSpan _delay;
 		private readonly IDictionary<string, ScanData> _scanStates;
-		
+
 		private CancellationTokenSource _cancelTokenSource;
 		private CancellationToken _cancelToken;
 		private bool _isDisposed;
+		private string _sessionID;
 
-		public UzScanner(IUzSettings settings, ILog log, Func<UzService> serviceFactory)
+		public UzScanner(IUzSettings settings, ILog log, Func<string, UzService> serviceFactory)
 		{
 			_settings = settings;
 			_log = log;
@@ -79,7 +80,7 @@ namespace RM.Lib.UzTicket
 		}
 
 		public event EventHandler<ScanEventArgs> ScanEvent;
-		
+
 		public void Dispose()
 		{
 			if (!_isDisposed)
@@ -95,7 +96,7 @@ namespace RM.Lib.UzTicket
 			var temp = _settings.Temp;
 			var scanLines = temp.Split('#');
 
-			using (var service = CreateService())
+			using (var service = CreateService(_sessionID))
 			{
 				foreach (var line in scanLines)
 				{
@@ -117,17 +118,17 @@ namespace RM.Lib.UzTicket
 						var lastName = scanParts[7];
 
 						AddItem(new ScanItem
-									{
-										ScanSource = line,
-										CallbackID = callback,
-										FirstName = firstName,
-										LastName = lastName,
-										Date = date,
-										Source = stFrom,
-										Destination = stTo,
-										TrainNumber = train,
-										CoachType = coach,
-									});
+						{
+							ScanSource = line,
+							CallbackID = callback,
+							FirstName = firstName,
+							LastName = lastName,
+							Date = date,
+							Source = stFrom,
+							Destination = stTo,
+							TrainNumber = train,
+							CoachType = coach,
+						});
 
 						_log.Debug($"Added scan item [{line}]");
 					}
@@ -248,7 +249,7 @@ namespace RM.Lib.UzTicket
 
 				_cancelTokenSource = new CancellationTokenSource();
 				_cancelToken = _cancelTokenSource.Token;
-				
+
 				Task.Run(Run, _cancelToken);
 			}
 		}
@@ -269,43 +270,84 @@ namespace RM.Lib.UzTicket
 			_log.Debug("Run()");
 
 			var isRunning = _cancelToken.WaitedOrCancelled(TimeSpan.FromSeconds(_initialDelay));
-			
+
 			//TODO: stats?
 
-			while (isRunning)
+			using (var service = CreateService(_sessionID))
 			{
-				//foreach (var statePair in _scanStates)
-				//{
-				//	try
-				//	{
-				//		ScanAsync(statePair.Key, statePair.Value).Wait(_cancelToken);
-				//	}
-				//	catch (Exception e)
-				//	{
-				//		HandleError(statePair.Key, statePair.Value, e.Message, true);
-				//	}
-				//}
-
-				using (var service = CreateService())
+				while (isRunning)
 				{
-					Task.WhenAll(_scanStates.Select(kv => GetScanItemTask(service, kv))).Wait(_cancelToken);
-				}
+					foreach (var statePair in _scanStates)
+					{
+						try
+						{
+							UpgradeRequiredException upgradeException = null;
+							int count = 0;
 
-				isRunning = _cancelToken.WaitedOrCancelled(_delay);
+							do
+							{
+								ScanAsync(service, statePair.Key, statePair.Value)
+										.Then(
+												() =>
+												{
+													upgradeException = null;
+												},
+												exception =>
+												{
+													if (exception is UpgradeRequiredException urExc
+															&& urExc.Kind == UpgradeKind.Captcha
+															&& count < _errorsToFail)
+													{
+														count++;
+														upgradeException = urExc;
+
+														var (imgType, imgData) = service.GetCaptchaImage().GetAwaiter().GetResult();
+														var args = new UpgradeScanEventArgs(
+																statePair.Value.Item.CallbackID,
+																UpgradeKind.Captcha,
+																imgType,
+																imgData
+														);
+
+														ScanEvent?.Invoke(this, args);
+
+														try
+														{
+															service.SetCaptchaResult(args.ResponseTask.GetAwaiter().GetResult());
+														}
+														catch (TaskCanceledException)
+														{
+															// Do nothing if cancelled
+														}
+													}
+													else
+													{
+														HandleError(statePair.Key, statePair.Value, exception?.Message, true);
+														upgradeException = null;
+													}
+												})
+										.Wait(_cancelToken);
+							}
+							while (upgradeException != null);
+
+							_sessionID = service.GetSessionId();
+						}
+						catch (Exception e)
+						{
+							HandleError(statePair.Key, statePair.Value, e.Message, true);
+						}
+					}
+
+					isRunning = _cancelToken.WaitedOrCancelled(_delay);
+				}
 			}
 
 			_log.Debug("Run() end");
-
-			Task GetScanItemTask(UzService service, KeyValuePair<string, ScanData> statePair)
-			{
-				return ScanAsync(service, statePair.Key, statePair.Value)
-						.Then(failFunc: exc => HandleError(statePair.Key, statePair.Value, exc?.Message, true));
-			}
 		}
 
-		private UzService CreateService()
+		private UzService CreateService(string sessionID)
 		{
-			return _serviceFactory?.Invoke() ?? new UzService(logger: _log);
+			return _serviceFactory?.Invoke(sessionID) ?? new UzService(logger: _log);
 		}
 
 		private void HandleError(string scanId, ScanData data, string error, bool severe)
@@ -336,7 +378,7 @@ namespace RM.Lib.UzTicket
 				else
 				{
 					data.State = ScanEventType.Warning;
-				}	
+				}
 			}
 			else
 			{
@@ -361,92 +403,86 @@ namespace RM.Lib.UzTicket
 				{
 					data.Attempts++;
 
-					//using (var service = CreateService())
+					var item = data.Item;
+					var trains = await service.ListTrainsAsync(item.Date, item.Source, item.Destination);
+
+					if (trains != null && trains.Length > 0)
 					{
-						var item = data.Item;
-						var trains = await service.ListTrainsAsync(item.Date, item.Source, item.Destination);
+						var train = trains.GetByNumber(item.TrainNumber);
 
-						if (trains != null && trains.Length > 0)
+						if (train != null)
 						{
-							var train = trains.GetByNumber(item.TrainNumber);
-
-							if (train != null)
+							if (train.CoachTypes != null && train.CoachTypes.Length > 0)
 							{
-								if (train.CoachTypes != null && train.CoachTypes.Length > 0)
+								CoachType[] coachTypes = null;
+
+								if (!String.IsNullOrEmpty(item.CoachType))
 								{
-									CoachType[] coachTypes = null;
+									coachTypes = FindCoachTypes(train, item.CoachType);
 
-									if (!String.IsNullOrEmpty(item.CoachType))
+									if (coachTypes.Length == 0 && item.ExactCoachType)
 									{
-										coachTypes = FindCoachTypes(train, item.CoachType);
-
-										if (coachTypes.Length == 0 && item.ExactCoachType)
-										{
-											HandleError(scanId, data, "No vacant coaches " + item.CoachType, false);
-											return;
-										}
-									}
-
-									if (coachTypes == null || coachTypes.Length == 0)
-									{
-										coachTypes = train.CoachTypes;
-									}
-
-									var (sessionId, coach, seat) = await BookAsync(train, coachTypes, item.FirstName, item.LastName);
-
-									if (!String.IsNullOrEmpty(sessionId))
-									{
-										var msg = $"Reserved ticket for [{item.ScanSource}]:\nTrain: {train.Number} Coach: {coach.Number}-{coach.Type} Seat: {seat.Number} Price: {(seat.Price??0)/100m:##.00 UAH}\n{sessionId}";
-										_log.Info(msg);
-										data.State = ScanEventType.Success;
-										data.StateDescription = sessionId;
-										ScanEvent?.Invoke(this, new ScanEventArgs(item.CallbackID, ScanEventType.Success, msg));
-										//Abort(scanId); rebook again in case it is bought by requester
+										HandleError(scanId, data, "No vacant coaches " + item.CoachType, false);
 										return;
 									}
 								}
 
-								HandleError(scanId, data, "No vacant seats", false);
+								if (coachTypes == null || coachTypes.Length == 0)
+								{
+									coachTypes = train.CoachTypes;
+								}
+
+								var (sessionId, coach, seat) = await BookAsync(service, train, coachTypes, item.FirstName, item.LastName);
+
+								if (!String.IsNullOrEmpty(sessionId))
+								{
+									var msg = $"Reserved ticket for [{item.ScanSource}]:\nTrain: {train.Number} Coach: {coach.Number}-{coach.Type} Seat: {seat.Number} Price: {(seat.Price ?? 0) / 100m:##.00 UAH}\n{sessionId}";
+									_log.Info(msg);
+									data.State = ScanEventType.Success;
+									data.StateDescription = sessionId;
+									ScanEvent?.Invoke(this, new ScanEventArgs(item.CallbackID, ScanEventType.Success, msg));
+									//Abort(scanId); rebook again in case it is bought by requester
+									return;
+								}
 							}
-							else
-							{
-								HandleError(scanId, data, $"Train {item.TrainNumber} not found", false);
-							}
+
+							HandleError(scanId, data, "No vacant seats", false);
 						}
 						else
 						{
-							HandleError(scanId, data, "No tickets selling for date/train", false);
+							HandleError(scanId, data, $"Train {item.TrainNumber} not found", false);
 						}
+					}
+					else
+					{
+						HandleError(scanId, data, "No tickets selling for date/train", false);
 					}
 				}
 			}
 		}
 
-		private async Task<(string,  Coach, Seat)> BookAsync(Train train, CoachType[] coachTypes, string firstName, string lastName)
+		private async Task<(string, Coach, Seat)> BookAsync(UzService svc, Train train, CoachType[] coachTypes, string firstName, string lastName)
 		{
-			using (var svc = CreateService())
+			foreach (var coachType in coachTypes)
 			{
-				foreach (var coachType in coachTypes)
+				var coaches = await svc.ListCoachesAsync(train, coachType);
+
+				// TODO: Smart coach and seat selection algorithm
+				foreach (var coach in coaches.OrderByDescending(c => c.PlacesCount))
 				{
-					var coaches = await svc.ListCoachesAsync(train, coachType);
+					var allSeats = await svc.ListSeatsAsync(train, coach);
+					var seats = coach.GetSeats(allSeats);
 
-					// TODO: Smart coach and seat selection algorithm
-					foreach (var coach in coaches.OrderByDescending(c => c.PlacesCount))
+					foreach (var seat in seats.OrderBy(s => (s.Number - 1) % 2).ThenBy(s => s.Price).ThenBy(s => s.Number))
 					{
-						var allSeats = await svc.ListSeatsAsync(train, coach);
-						var seats = coach.GetSeats(allSeats);
-
-						foreach (var seat in seats.OrderBy(s => (s.Number - 1) % 2).ThenBy(s => s.Price).ThenBy(s => s.Number))
+						try
 						{
-							try
-							{
-								await svc.BookSeatAsync(train, coach, seat, new Passenger { FirstName = firstName, LastName = lastName, Bedding = coach.HasBedding });
-							    return (svc.GetSessionId(), coach, seat);
-							}
-							catch (ResponseException)
-							{
-                                // Just try next seat
-                            }
+							await svc.BookSeatAsync(train, coach, seat, new Passenger { FirstName = firstName, LastName = lastName, Bedding = coach.HasBedding });
+							return (svc.GetSessionId(), coach, seat);
+						}
+						catch (ResponseException)
+						{
+							// Just try next seat
 						}
 					}
 				}
