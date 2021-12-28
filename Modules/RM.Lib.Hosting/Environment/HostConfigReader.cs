@@ -20,21 +20,21 @@ namespace RM.Lib.Hosting.Environment
 		private readonly ILog _log;
 		private readonly List<ConfigModule> _modules;
 		private readonly List<ConfigSection> _sections;
-        private readonly StringLookup _configElements;
-		
+		private readonly StringLookup _configElements;
+
 		public HostConfigReader(ILog log)
 		{
 			_log = log;
 			_modules = new List<ConfigModule>();
 			_sections = new List<ConfigSection>();
-            _configElements = new StringLookup();
+			_configElements = new StringLookup();
 		}
 
 		public IEnumerable<ConfigModule> Modules => _modules;
 
 		public IEnumerable<ConfigSection> Sections => _sections;
 
-        public ILookup<string, string> Configs => _configElements;
+		public ILookup<string, string> Configs => _configElements;
 
 		public bool ReadDefaultResource(bool throwIfUnsuccessful = true)
 		{
@@ -60,7 +60,7 @@ namespace RM.Lib.Hosting.Environment
 
 		public bool ReadDefaultFile(bool throwIfUnsuccessful = true)
 		{
-			var configs = new[] { HostConfig, @"Properties\" + HostConfig };
+			var configs = new[] {HostConfig, @"Properties\" + HostConfig};
 			var configDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) ?? @".\";
 
 			foreach (var configName in configs)
@@ -142,51 +142,55 @@ namespace RM.Lib.Hosting.Environment
 
 		private void LoadElements(XDocument doc)
 		{
-            var root = doc.Root;
+			var root = doc.Root;
 
-            if (root == null)
-            {
-                return;
-            }
+			if (root == null)
+			{
+				return;
+			}
 
-            var moduleElement = root.Element(XName.Get("modules", SchemaUrn));
+			var moduleElement = root.Element(XName.Get("modules", SchemaUrn));
 
-            if (moduleElement != null)
-            {
-                foreach (var componentNode in moduleElement.Elements(XName.Get("module", SchemaUrn)))
-                {
+			if (moduleElement != null)
+			{
+				foreach (var componentNode in moduleElement.Elements(GetFullName("module")))
+				{
+					var attr = componentNode.Attribute("assembly");
+					var element = new ConfigModule(attr?.Value);
 
-                    var attr = componentNode.Attribute("assembly");
-                    var element = new ConfigModule(attr?.Value);
+					_modules.Add(element);
+				}
+			}
 
-                    _modules.Add(element);
-                }
-            }
+			var sectionElement = root.Element(GetFullName("sections"));
 
-            var sectionElement = root.Element(XName.Get("sections", SchemaUrn));
+			if (sectionElement != null)
+			{
+				foreach (var sectionNode in sectionElement.Elements(GetFullName("section")))
+				{
+					var nameAttr = sectionNode.Attribute("name");
+					var typeAttr = sectionNode.Attribute("type");
 
-            if (sectionElement != null)
-            {
-                foreach (var sectionNode in sectionElement.Elements(XName.Get("section", SchemaUrn)))
-                {
-                    var nameAttr = sectionNode.Attribute("name");
-                    var typeAttr = sectionNode.Attribute("type");
+					var element = new ConfigSection(nameAttr?.Value, typeAttr?.Value);
 
-                    var element = new ConfigSection(nameAttr?.Value, typeAttr?.Value);
+					_sections.Add(element);
+				}
+			}
 
-                    _sections.Add(element);
-                }
-            }
+			var configElement = root.Element(GetFullName("config"));
 
-            var configElement = root.Element(XName.Get("config", SchemaUrn));
+			if (configElement != null)
+			{
+				foreach (var element in configElement.Elements())
+				{
+					_configElements.Add(element.Name.LocalName, element.ToString(SaveOptions.DisableFormatting));
+				}
+			}
+		}
 
-            if (configElement != null)
-            {
-                foreach (var element in configElement.Elements())
-                {
-                    _configElements.Add(element.Name.LocalName, element.ToString(SaveOptions.DisableFormatting));
-                }
-            }
+		private static XName GetFullName(string name)
+		{
+			return XName.Get(name, SchemaUrn);
 		}
 	}
 }
